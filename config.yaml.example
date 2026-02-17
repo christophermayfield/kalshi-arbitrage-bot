@@ -1,0 +1,462 @@
+kalshi:
+  api_key_id: "YOUR_API_KEY_ID"
+  private_key_path: "~/.kalshi/private-key.pem"
+  base_url: "https://demo-api.kalshi.co"
+  demo_mode: true
+
+trading:
+  paper_mode: true
+  arbitrage_threshold: 0.99
+  min_profit_cents: 10
+  max_position_contracts: 1000
+  max_order_value_cents: 10000
+  order_timeout_seconds: 30
+  retry_attempts: 3
+  retry_delay_seconds: 1
+
+paper_trading:
+  initial_balance: 100000  # $1000.00 in cents
+  slippage_model: "fixed"  # fixed, random, volume_based
+  slippage_rate: 0.001  # 0.1% slippage
+  fill_probability: 0.95  # 95% fill rate
+  commission_rate: 0.01  # 1% commission
+
+orderbook:
+  min_liquidity_score: 50
+  max_slippage_percent: 2.0
+  min_fill_probability: 0.8
+  max_spread_percent: 5.0
+
+monitoring:
+  scan_interval_seconds: 1.0
+  log_level: "INFO"
+  notification_enabled: false
+  notification_webhook: ""
+  metrics_port: 8000
+  environment: "development"
+
+sentry:
+  enabled: false
+  dsn: ""
+  environment: "development"
+  release: "0.1.0"
+  traces_sample_rate: 0.1
+  log_level: "ERROR"
+
+tracing:
+  enabled: false
+  service_name: "arbitrage-bot"
+  exporter: "console"
+  export_interval_ms: 5000
+
+notifications:
+  enabled: false
+  slack:
+    webhook_url: ""
+  discord:
+    webhook_url: ""
+  telegram:
+    token: ""
+    chat_id: ""
+
+risk:
+  max_daily_loss_cents: 10000
+  max_open_positions: 50
+  circuit_breaker_threshold: 5
+  circuit_breaker_window_seconds: 300
+
+# ML Configuration
+ml:
+  enabled: false
+  predictive_weight: 0.3
+
+# Sentiment Analysis Configuration  
+sentiment:
+  enabled: true
+  weight: 0.2
+
+# Statistical Arbitrage Configuration
+statistical:
+  enabled: false
+  strategies: ["mean_reversion", "pairs_trading"]
+  
+  # Common parameters
+  lookback_period_days: 30
+  min_confidence: 0.7
+  max_positions: 10
+  risk_free_rate: 0.02
+  
+  # Mean Reversion Strategy
+  mean_reversion:
+    enabled: true
+    z_threshold: 2.0
+    mean_reversion_window: 20
+    min_profit_cents: 10
+    max_volatility: 0.5
+  
+  # Pairs Trading Strategy
+  pairs_trading:
+    enabled: true
+    min_correlation: 0.7
+    min_profit_cents: 20
+    spread_deviation_threshold: 1.5
+    hedge_ratio_lookback: 30
+
+market_filters:
+  min_volume: 100
+  min_liquidity: 50
+  status: "open"
+  exclude_closely_predicted: false
+
+api:
+  rate_limit_rps: 5.0
+  rate_limit_rpm: 300.0
+  rate_limit_burst: 10
+
+database:
+  path: "data/arbitrage.db"
+  cleanup_days: 30
+
+redis:
+  enabled: false
+  host: "localhost"
+  port: 6379
+
+websocket:
+  enabled: false
+  reconnect_delay_seconds: 5
+  heartbeat_interval_seconds: 30
+
+trading:
+  max_markets_subscribed: 50
+  max_concurrent_executions: 3
+  high_frequency:
+    enabled: false
+  auto_mode: false
+
+correlation_strategy:
+  enabled: true
+  min_correlation: 0.6
+  max_spread_deviation: 2.0
+  min_liquidity_threshold: 100
+  max_positions_per_pair: 5
+  lookback_periods: 30
+  spread_window: 20
+  update_interval: 60
+  opportunity_threshold: 0.5
+
+auto_tuning:
+  enabled: false
+  objective: "balanced"  # maximize_profit, maximize_sharpe, maximize_win_rate, minimize_drawdown, balanced
+  retrain_interval_hours: 4
+  min_data_points: 100
+  ensemble_models: true
+
+backtesting:
+  enabled: true
+  initial_capital: 10000.0
+  commission_rate: 0.01
+  slippage_model: "linear"
+  slippage_rate: 0.001
+  max_position_size: 0.2
+  max_drawdown_limit: 0.15
+  stop_loss_enabled: true
+  stop_loss_threshold: 0.05
+  risk_free_rate: 0.02
+  enable_short_selling: true
+  enable_leverage: false
+  leverage_ratio: 1.0
+  margin_requirement: 0.5
+  
+  parameter_optimization:
+    enabled: true
+    method: "bayesian"  # grid_search, random_search, bayesian, genetic
+    cv_folds: 5
+    n_jobs: 4
+    objective: "sharpe_ratio"
+    
+  walk_forward:
+    enabled: true
+    train_period_months: 6
+    test_period_months: 1
+    optimization_method: "bayesian"
+
+performance_attribution:
+  enabled: true
+  snapshot_interval: 60
+  attribution_window_days: 30
+  enable_real_time: true
+  cache_ttl_minutes: 5
+  database_path: "data/performance.db"
+  
+  execution_quality:
+    max_slippage_threshold: 0.5
+    max_execution_time_threshold: 5000
+    market_impact_threshold: 1.0
+  
+  attribution_dimensions:
+    - "strategy"
+    - "market"
+    - "timeframe"
+    - "market_condition"
+    - "liquidity_bucket"
+  
+  reporting:
+    auto_generate_daily: true
+    auto_generate_weekly: true
+    auto_generate_monthly: true
+    include_recommendations: true
+
+smart_order_routing:
+  enabled: true
+  default_algorithm: "twap"  # simple, twap, vwap
+  max_concurrent_executions: 10
+  enable_venue_optimization: true
+  
+  algorithms:
+    twap:
+      enabled: true
+      num_slices: 10
+      slice_interval_seconds: 30
+      participation_rate: 0.1
+      
+    vwap:
+      enabled: true
+      participation_rate: 0.15
+      lookback_periods: 20
+      
+    pov:
+      enabled: false
+      participation_rate: 0.25
+      
+    adaptive:
+      enabled: false
+      volatility_threshold: 0.02
+      
+  liquidity_venues:
+    kalshi_primary:
+      venue_id: "kalshi_primary"
+      venue_name: "Kalshi Primary"
+      venue_type: "exchange"
+      commission_rate: 0.01
+      slippage_estimate: 0.002
+      min_order_size: 1
+      max_order_size: 10000
+      reliability_score: 0.95
+      data_quality_score: 0.9
+      
+    kalshi_backup:
+      venue_id: "kalshi_backup"
+      venue_name: "Kalshi Backup"
+      venue_type: "exchange"
+      commission_rate: 0.012
+      slippage_estimate: 0.003
+      min_order_size: 1
+      max_order_size: 5000
+      reliability_score: 0.85
+      data_quality_score: 0.85
+      
+  execution_quality:
+    max_slippage_threshold: 0.5
+    max_execution_time_threshold: 5000
+    market_impact_threshold: 1.0
+    enable_real_time_monitoring: true
+
+multi_exchange:
+  enabled: false
+  enable_auto_execution: false
+  scanning_interval_seconds: 30
+  max_concurrent_arbitrages: 5
+  
+  exchanges:
+    kalshi:
+      enabled: true
+      api_base_url: "https://demo-api.kalshi.co"
+      api_key_id: "YOUR_KALSHI_API_KEY_ID"
+      private_key_path: "~/.kalshi/private-key.pem"
+      demo_mode: true
+      supports_websocket: true
+      supports_market_data: true
+      supports_trading: true
+      supports_orderbook: true
+      rate_limit_rps: 10
+      rate_limit_rpm: 600
+      commission_rate: 0.01
+    
+    polymarket:
+      enabled: false
+      api_base_url: "https://api.polymarket.com"
+      api_key: "YOUR_POLYMARKET_API_KEY"
+      demo_mode: true
+      supports_market_data: true
+      supports_trading: false
+      rate_limit_rps: 5
+      commission_rate: 0.02
+    
+  predictit:
+      enabled: false
+      api_base_url: "https://api.predictit.com"
+      api_key: "YOUR_PREDICTIT_API_KEY"
+      demo_mode: true
+      supports_market_data: true
+      supports_trading: false
+      rate_limit_rps: 3
+      commission_rate: 0.015
+    
+    augur:
+      enabled: false
+      api_base_url: "https://www.augur.com"
+      api_key: "YOUR_AUGUR_API_KEY"
+      demo_mode: true
+      supports_market_data: true
+      supports_trading: false
+      rate_limit_rps: 2
+      commission_rate: 0.025
+  
+  olympus:
+      enabled: false
+      api_base_url: "https://api.olympus.com"
+      api_key: "YOUR_OLYMPUS_API_KEY"
+      demo_mode: true
+      supports_market_data: true
+      supports_trading: false
+      rate_limit_rps: 4
+      commission_rate: 0.01
+      betfair:
+      enabled: false
+      api_base_url: "https://api.betfair.com"
+      api_key: "YOUR_BETFAIR_API_KEY"
+      demo_mode: true
+      supports_market_data: true
+      supports_trading: false
+      rate_limit_rps: 6
+      commission_rate: 0.05
+  
+  market_mappings:
+    us_elections_2024:
+      base_event: "us_presidential_election_2024"
+      exchanges:
+        kalshi: "PRESIDENTIAL-2024-DEM"
+        polymarket: "US-ELECTIONS-DEM"
+        predictit: "PRESIDENTIAL-2024-WINNER"
+        augur: "PRESIDENTIAL-2024-DEM"
+      event_type: "binary"
+      event_description: "US Presidential Election 2024"
+      mapping_confidence: 0.9
+    
+    bitcoin_price_2024:
+      base_event: "bitcoin_price_2024"
+      exchanges:
+        kalshi: "BITCOIN-PRICE-2024"
+        polymarket: "BTC-PRICE-2024"
+        predictit: "BTC-PRICE-2024"
+        augur: "BITCOIN-PRICE-2024"
+      event_type: "numeric"
+      event_description: "Bitcoin price at end of 2024"
+      mapping_confidence: 0.8
+  
+    sp500_movement:
+      base_event: "sp500_movement_2024"
+      exchanges:
+        kalshi: "SP500-MOVEMENT-2024"
+        polymarket: "SP500-MOVEMENT-2024"
+      event_type: "numeric"
+      event_description: "S&P 500 movement prediction"
+      mapping_confidence: 0.7
+  
+  arbitrage_config:
+    min_spread_threshold: 2.0
+    min_profit_cents: 10
+    max_slippage_percent: 5.0
+    confidence_threshold: 0.7
+    max_concurrent_arbitrages: 5
+    scanning_interval_seconds: 30
+    enable_auto_execution: false
+
+event_driven:
+  enabled: false
+  enable_persistence: true
+  enable_monitoring: true
+  
+  message_broker:
+    default_queue_size: 10000
+    max_queue_size: 50000
+    enable_routing_table: true
+    persistence_enabled: true
+    persistence_path: "data/events/state"
+    
+  event_processor:
+    max_concurrent_processors: 5
+    processing_timeout_seconds: 30
+  
+  event_sources:
+    websocket_enabled: false
+    poll_interval_seconds: 5
+  
+  monitoring:
+    health_check_interval_seconds: 60
+    performance_tracking: true
+    alert_channels: ["email", "slack"]
+    
+  async_services:
+    - market_data_aggregator
+    - risk_calculator
+    - position_tracker
+    - notification_service
+  
+  system_events:
+    enabled: true
+    retry_attempts: 3
+    timeout_seconds: 30
+    
+  api_endpoints:
+    base_url: "http://localhost:8000"
+    health_endpoint: "/health"
+    metrics_endpoint: "/metrics"
+    events_endpoint: "/events"
+
+ml_pipeline:
+  enabled: true
+  enable_automated_training: true
+  enable_performance_monitoring: true
+  max_concurrent_training: 2
+  
+  training_config:
+    retrain_interval_hours: 24
+    min_samples_for_retrain: 1000
+    test_size: 0.2
+    cv_folds: 5
+    enable_hyperparameter_optimization: true
+  
+  model_registry:
+    registry_path: "data/models/registry"
+    auto_cleanup: true
+    max_model_versions: 10
+  
+  models:
+    opportunity_classifier:
+      model_type: "classification"
+      model_class: "RandomForestClassifier"
+      target_column: "is_profitable"
+      feature_columns: ["confidence", "profit_percent", "liquidity_score", "market_volatility"]
+      auto_deploy: true
+      min_accuracy: 0.65
+      performance_threshold: 0.7
+      
+    profit_predictor:
+      model_type: "regression"
+      model_class: "RandomForestRegressor"
+      target_column: "profit_cents"
+      feature_columns: ["confidence", "quantity", "spread_percent", "bid_ask_imbalance"]
+      auto_deploy: false
+      min_r2_score: 0.5
+      performance_threshold: 0.8
+      
+    risk_assessor:
+      model_type: "classification"
+      model_class: "LogisticRegression"
+      target_column: "risk_level"
+      feature_columns: ["position_size", "market_volatility", "correlation_strength"]
+      auto_deploy: false
+      min_accuracy: 0.7
+      performance_threshold: 0.75

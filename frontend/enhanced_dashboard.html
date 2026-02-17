@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Kalshi Arbitrage Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1rem;
+            height: 100vh;
+        }
+        
+        .main-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .metrics-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .dark-mode {
+            background: #1a202c;
+            color: #e2e8f0;
+        }
+        
+        .dark-mode .card {
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+        
+        .dark-mode .main-panel,
+        .dark-mode .metrics-panel {
+            background: linear-gradient(135deg, #2b6cb3 0%, #4c1d95 100%);
+        }
+        
+        .strategy-toggle {
+            transition: all 0.3s ease;
+        }
+        
+        .strategy-toggle.active {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .alert-badge {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .profit-positive { color: #48bb78; }
+        .profit-negative { color: #f56565; }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .control-button {
+            background: #3182ce;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .control-button:hover {
+            background: #2c5282;
+        }
+        
+        .control-button.danger {
+            background: #e53e3e;
+        }
+        
+        .control-button.danger:hover {
+            background: #c53030;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="dashboard-grid">
+        <!-- Left Panel: Controls & Metrics -->
+        <div class="metrics-panel">
+            <!-- Dark Mode Toggle -->
+            <div class="card">
+                <h3 class="text-lg font-bold mb-2">🌙 Display Settings</h3>
+                <button id="darkModeToggle" class="control-button mb-2">
+                    Enable Dark Mode
+                </button>
+                <button id="layoutToggle" class="control-button">
+                    Compact View
+                </button>
+            </div>
+            
+            <!-- Portfolio Metrics -->
+            <div class="card">
+                <h3 class="text-lg font-bold mb-2">💰 Portfolio</h3>
+                <div class="flex justify-between mb-2">
+                    <span>Balance:</span>
+                    <span id="balance" class="metric-value">$10,000</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span>Daily P&L:</span>
+                    <span id="dailyPnl" class="metric-value profit-positive">+$125.50</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span>Total P&L:</span>
+                    <span id="totalPnl" class="metric-value profit-positive">+$1,250.00</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Win Rate:</span>
+                    <span id="winRate" class="metric-value">68%</span>
+                </div>
+            </div>
+            
+            <!-- Strategy Controls -->
+            <div class="card">
+                <h3 class="text-lg font-bold mb-2">⚡ Strategy Controls</h3>
+                
+                <div class="mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span>Internal Arbitrage</span>
+                        <button id="internalToggle" class="strategy-toggle px-3 py-1 rounded">
+                            OFF
+                        </button>
+                    </div>
+                    <div class="text-xs text-gray-600">
+                        Risk: Low | Profit: 1-5¢ | Win: 95%
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span>Cross-Market Arbitrage</span>
+                        <button id="crossMarketToggle" class="strategy-toggle px-3 py-1 rounded">
+                            OFF
+                        </button>
+                    </div>
+                    <div class="text-xs text-gray-600">
+                        Risk: Low | Profit: 5-25¢ | Win: 85%
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span>Statistical Arbitrage</span>
+                        <button id="statisticalToggle" class="strategy-toggle px-3 py-1 rounded">
+                            OFF
+                        </button>
+                    </div>
+                    <div class="text-xs text-gray-600">
+                        Risk: Medium | Profit: 10-50¢ | Win: 65%
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span>Correlation Strategy</span>
+                        <button id="correlationToggle" class="strategy-toggle px-3 py-1 rounded">
+                            OFF
+                        </button>
+                    </div>
+                    <div class="text-xs text-gray-600">
+                        Risk: Medium | Profit: 15-40¢ | Win: 70%
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Risk Management -->
+            <div class="card">
+                <h3 class="text-lg font-bold mb-2">🛡️ Risk Controls</h3>
+                <div class="flex justify-between mb-2">
+                    <span>Daily Loss Limit:</span>
+                    <span id="lossLimit">$100.00</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span>Max Positions:</span>
+                    <span id="maxPositions">10</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span>Risk Score:</span>
+                    <span id="riskScore" class="text-yellow-500">Medium</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Circuit Breaker:</span>
+                    <span id="circuitBreaker" class="text-green-500">Normal</span>
+                </div>
+            </div>
+            
+            <!-- Bot Control -->
+            <div class="card">
+                <h3 class="text-lg font-bold mb-2">🤖 Bot Control</h3>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <button id="startBot" class="control-button">
+                        ▶️ Start Bot
+                    </button>
+                    <button id="stopBot" class="control-button danger">
+                        ⏹️ Stop Bot
+                    </button>
+                </div>
+                <div class="text-center mb-2">
+                    <span id="botStatus" class="font-semibold">⚪ Stopped</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="paperToggle" class="control-button">
+                        📄 Paper Mode
+                    </button>
+                    <button id="liveToggle" class="control-button danger">
+                        💰 Live Mode
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel: Charts & Opportunities -->
+        <div class="main-panel">
+            <!-- P&L Chart -->
+            <div class="card mb-4">
+                <h3 class="text-xl font-bold mb-4">📈 Real-Time Performance</h3>
+                <canvas id="pnlChart" width="400" height="200"></canvas>
+            </div>
+            
+            <!-- Current Opportunities -->
+            <div class="card">
+                <h3 class="text-xl font-bold mb-4">🎯 Current Opportunities</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="text-left p-2">Market</th>
+                                <th class="text-left p-2">Strategy</th>
+                                <th class="text-right p-2">Profit</th>
+                                <th class="text-right p-2">Confidence</th>
+                                <th class="text-right p-2">Risk</th>
+                                <th class="text-center p-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="opportunitiesTable">
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-2">Biden vs Trump</td>
+                                <td class="p-2">Cross-Market</td>
+                                <td class="p-2 text-right profit-positive">+$0.18</td>
+                                <td class="p-2 text-right">85%</td>
+                                <td class="p-2 text-right text-green-500">Low</td>
+                                <td class="p-2 text-center">
+                                    <button class="control-button text-xs">Execute</button>
+                                </td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-2">ETH > $4000</td>
+                                <td class="p-2">Internal</td>
+                                <td class="p-2 text-right profit-positive">+$0.04</td>
+                                <td class="p-2 text-right">92%</td>
+                                <td class="p-2 text-right text-green-500">Very Low</td>
+                                <td class="p-2 text-center">
+                                    <button class="control-button text-xs">Execute</button>
+                                </td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-2">Bitcoin $50k</td>
+                                <td class="p-2">Statistical</td>
+                                <td class="p-2 text-right profit-positive">+$0.32</td>
+                                <td class="p-2 text-right">68%</td>
+                                <td class="p-2 text-right text-yellow-500">Medium</td>
+                                <td class="p-2 text-center">
+                                    <button class="control-button text-xs">Execute</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Alert for new opportunities -->
+                <div class="mt-4 p-3 bg-yellow-100 rounded alert-badge" id="alertBanner" style="display: none;">
+                    <strong>🔔 New Opportunity!</strong> 
+                    <span id="alertMessage">High-confidence arbitrage detected</span>
+                </div>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="card mt-4">
+                <h3 class="text-xl font-bold mb-4">📊 Trading Statistics</h3>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <div class="metric-value">156</div>
+                        <div class="text-sm text-gray-600">Total Trades</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="metric-value profit-positive">142</div>
+                        <div class="text-sm text-gray-600">Successful</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="metric-value">91%</div>
+                        <div class="text-sm text-gray-600">Success Rate</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="metric-value profit-positive">$485.25</div>
+                        <div class="text-sm text-gray-600">Daily P&L</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dark Mode Toggle
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const body = document.body;
+        
+        darkModeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            const isDark = body.classList.contains('dark-mode');
+            darkModeToggle.textContent = isDark ? 'Disable Dark Mode' : 'Enable Dark Mode';
+            localStorage.setItem('darkMode', isDark);
+        });
+        
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            body.classList.add('dark-mode');
+            darkModeToggle.textContent = 'Disable Dark Mode';
+        }
+        
+        // Strategy Toggles
+        const strategies = {
+            internal: document.getElementById('internalToggle'),
+            crossMarket: document.getElementById('crossMarketToggle'),
+            statistical: document.getElementById('statisticalToggle'),
+            correlation: document.getElementById('correlationToggle')
+        };
+        
+        Object.values(strategies).forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                const isActive = this.classList.contains('active');
+                this.classList.toggle('active');
+                this.textContent = isActive ? 'OFF' : 'ON';
+                
+                // Send strategy update to backend
+                const strategyName = this.id.replace('Toggle', '');
+                fetch(`/api/strategies/${strategyName}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: !isActive })
+                });
+            });
+        });
+        
+        // Bot Control
+        const startBtn = document.getElementById('startBot');
+        const stopBtn = document.getElementById('stopBot');
+        const botStatus = document.getElementById('botStatus');
+        
+        startBtn.addEventListener('click', () => {
+            fetch('/api/start', { method: 'POST' });
+            botStatus.textContent = '🟢 Running';
+            botStatus.className = 'font-semibold text-green-500';
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            fetch('/api/stop', { method: 'POST' });
+            botStatus.textContent = '🔴 Stopped';
+            botStatus.className = 'font-semibold text-red-500';
+        });
+        
+        // P&L Chart
+        const ctx = document.getElementById('pnlChart').getContext('2d');
+        const pnlChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                datasets: [{
+                    label: 'Cumulative P&L',
+                    data: [0, 25, 45, 125, 210, 485],
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // WebSocket for real-time updates
+        const ws = new WebSocket('ws://localhost:8002/ws');
+        
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            switch(data.type) {
+                case 'pnl_update':
+                    // Update P&L chart
+                    pnlChart.data.datasets[0].data.push(data.pnl);
+                    pnlChart.update();
+                    document.getElementById('dailyPnl').textContent = `$${data.daily_pnl}`;
+                    break;
+                    
+                case 'opportunity':
+                    // Update opportunities table
+                    showNewOpportunity(data.opportunity);
+                    break;
+                    
+                case 'bot_status':
+                    // Update bot status
+                    updateBotStatus(data.status);
+                    break;
+            }
+        };
+        
+        function showNewOpportunity(opportunity) {
+            const alertBanner = document.getElementById('alertBanner');
+            const alertMessage = document.getElementById('alertMessage');
+            
+            alertMessage.textContent = `${opportunity.market}: $${opportunity.profit} profit`;
+            alertBanner.style.display = 'block';
+            
+            // Hide alert after 5 seconds
+            setTimeout(() => {
+                alertBanner.style.display = 'none';
+            }, 5000);
+        }
+        
+        function updateBotStatus(status) {
+            const statusElement = document.getElementById('botStatus');
+            if (status.running) {
+                statusElement.textContent = '🟢 Running';
+                statusElement.className = 'font-semibold text-green-500';
+            } else {
+                statusElement.textContent = '🔴 Stopped';
+                statusElement.className = 'font-semibold text-red-500';
+            }
+        }
+        
+        // Simulate real-time updates for demo
+        setInterval(() => {
+            // Update random metrics
+            const dailyPnl = 485.25 + Math.random() * 20 - 10;
+            document.getElementById('dailyPnl').textContent = `$${dailyPnl.toFixed(2)}`;
+            
+            // Add new opportunity occasionally
+            if (Math.random() < 0.1) {
+                showNewOpportunity({
+                    market: 'New Market Detected',
+                    profit: (Math.random() * 0.5 + 0.05).toFixed(2)
+                });
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

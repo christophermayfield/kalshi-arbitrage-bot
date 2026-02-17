@@ -1,0 +1,172 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: arbitrage-bot
+  namespace: trading-system
+  labels:
+    app: arbitrage-bot
+    version: v2.0.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: arbitrage-bot
+  template:
+    metadata:
+      labels:
+        app: arbitrage-bot
+        version: v2.0.0
+    spec:
+      containers:
+      - name: arbitrage-bot
+        image: arbitrage-bot:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: api
+        - containerPort: 9000
+          name: monitoring
+        env:
+        - name: CONFIG_PATH
+          value: "/app/config/production.yaml"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: arbitrage-secrets
+              key: database-url
+        - name: API_TOKENS
+          valueFrom:
+            secretKeyRef:
+              name: arbitrage-secrets
+              key: api-tokens
+        - name: EXCHANGE_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: arbitrage-secrets
+              key: exchange-api-keys
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: data
+          mountPath: /app/data
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: config
+        configMap:
+          name: arbitrage-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: arbitrage-data-pvc
+      - name: logs
+        persistentVolumeClaim:
+          claimName: arbitrage-logs-pvc
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - arbitrage-bot
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: arbitrage-bot-service
+  namespace: trading-system
+  labels:
+    app: arbitrage-bot
+spec:
+  selector:
+    app: arbitrage-bot
+  ports:
+  - name: api
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  - name: monitoring
+    port: 9000
+    targetPort: 9000
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: arbitrage-bot-api
+  namespace: trading-system
+  labels:
+    app: arbitrage-bot
+spec:
+  selector:
+    app: arbitrage-bot
+  ports:
+  - name: api
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  type: LoadBalancer
+  loadBalancerSourceRanges:
+  - 0.0.0.0/0
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: arbitrage-bot-ingress
+  namespace: trading-system
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.arbitrage-bot.com
+    secretName: arbitrage-bot-tls
+  rules:
+  - host: api.arbitrage-bot.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: arbitrage-bot-api
+            port:
+              number: 80

@@ -1,0 +1,21 @@
+version: '1'
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Redis
+    type: prometheus
+    access: proxy
+    url: http://redis:6379/metrics
+    editable: false
+
+dashboards:
+  - name: Arbitrage Bot
+    type: file
+    folder: General
+    options:
+      path: /etc/grafana/provisioning/dashboards

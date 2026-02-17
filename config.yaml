@@ -1,8 +1,55 @@
 kalshi:
-  api_key_id: "YOUR_API_KEY_ID"
+  api_key_id: "316aaeb6-6073-4550-987c-83db1649fcfd"
   private_key_path: "~/.kalshi/private-key.pem"
-  base_url: "https://demo-api.kalshi.co"
-  demo_mode: true
+  base_url: "https://api.elections.kalshi.com"
+  demo_mode: false
+
+# Predictive Models Configuration
+predictive_models:
+  enabled: true
+  prophet:
+    retrain_interval_hours: 24
+    prediction_horizon_minutes: 5
+    daily_seasonality: true
+    weekly_seasonality: true
+    changepoint_prior_scale: 0.01
+  lstm:
+    sequence_length: 20
+    prediction_horizon_minutes: 5
+    n_epochs: 50
+    use_gpu: false
+  ensemble:
+    prophet_weight: 0.7
+    lstm_weight: 0.3
+    min_predictions_required: 1
+
+# Sentiment Analysis Configuration
+sentiment_analysis:
+  enabled: true
+  news:
+    finnhub:
+      api_key: "YOUR_FINNHUB_API_KEY"
+      sources: ["reuters", "bloomberg", "business-insider"]
+      max_relevance_score: 0.5
+    newsapi:
+      api_key: "YOUR_NEWSAPI_KEY"
+      language: "en"
+      max_articles: 10
+  social:
+    twitter:
+      bearer_token: "YOUR_TWITTER_BEARER_TOKEN"
+      max_tweets: 100
+    stocktwits:
+      enabled: true
+      max_messages: 50
+  aggregation:
+    cache_ttl_minutes: 30
+    source_weights:
+      finnhub: 0.4
+      newsapi: 0.3
+      twitter: 0.2
+      stocktwits: 0.1
+    confidence_threshold: 0.5
 
 trading:
   paper_mode: false
@@ -77,4 +124,41 @@ redis:
   enabled: false
   host: "localhost"
   port: 6379
+
+websocket:
+  enabled: true
+  reconnect_delay_seconds: 5
+  heartbeat_interval_seconds: 30
+
+arbitrage:
+  enabled: true
+  scan_interval_seconds: 1.0
+  min_profit_percent: 0.5
+  min_confidence: 0.7
+  execution_window_seconds: 30
+
+# Limited Risk Trading Mode - $10-$15 trades for small accounts
+limited_risk:
+  enabled: true
+  auto_enable_balance_cents: 100000      # Auto-enable when balance < $1,000
+  min_trade_cents: 1000                   # $10 minimum trade size
+  max_trade_cents: 1500                   # $15 maximum trade size
+  max_daily_trades: 10                    # Maximum 10 trades per day
+  max_daily_loss_cents: 5000              # $50 daily loss limit
+  cooldown_seconds: 60                    # 60 second cooldown between trades
+  require_confirmation: false             # Execute automatically
+  min_profit_after_fees_cents: 50         # Minimum $0.50 profit after fees
+  max_fee_percent_of_profit: 50.0         # Skip if fees > 50% of profit
+  illiquid_volume_threshold_cents: 100000 # Skip markets with <$1,000 daily volume
+  
+  # Progressive scaling - increase trade size after successful streaks
+  progressive_scaling:
+    enabled: true
+    threshold_trades: 10                  # After 10 trades
+    profitable_streak_required: true      # Only if profitable
+    increment_cents: 500                  # Increase by $5 per level
+    max_trade_cents: 3000                 # Cap at $30 maximum
+  
+  # Market exclusions for illiquid markets
+  excluded_markets: []                    # Add specific market IDs to exclude
 

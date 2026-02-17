@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalshi Arbitrage Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stat-card { @apply bg-white rounded-lg shadow p-4; }
+        .metric-value { @apply text-2xl font-bold; }
+        .metric-label { @apply text-gray-500 text-sm; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow mb-6">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-gray-800">Kalshi Arbitrage Bot</h1>
+            <div class="flex items-center gap-4">
+                <span id="status" class="px-3 py-1 rounded-full text-sm bg-yellow-100 text-yellow-800">Stopped</span>
+                <button id="toggleBtn" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Start</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="stat-card">
+                <div class="metric-label">Total Profit</div>
+                <div class="metric-value text-green-600" id="profit">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="metric-label">Cash Balance</div>
+                <div class="metric-value" id="balance">$10,000.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="metric-label">Active Positions</div>
+                <div class="metric-value" id="positions">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="metric-label">Win Rate</div>
+                <div class="metric-value" id="winRate">0%</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <h2 class="text-lg font-semibold mb-4">Profit Over Time</h2>
+                <canvas id="profitChart" height="200"></canvas>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <h2 class="text-lg font-semibold mb-4">Trade Distribution</h2>
+                <canvas id="tradeChart" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4 mb-6">
+            <h2 class="text-lg font-semibold mb-4">Recent Opportunities</h2>
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-gray-500 text-sm">
+                        <th class="pb-2">Time</th>
+                        <th class="pb-2">Market</th>
+                        <th class="pb-2">Type</th>
+                        <th class="pb-2">Profit</th>
+                        <th class="pb-2">Confidence</th>
+                        <th class="pb-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="opportunitiesTable">
+                    <tr><td colspan="6" class="text-center text-gray-500 py-4">No opportunities yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="stat-card">
+                <div class="metric-label">Total Trades</div>
+                <div class="metric-value" id="totalTrades">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="metric-label">API Errors</div>
+                <div class="metric-value text-red-600" id="apiErrors">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="metric-label">Last Scan</div>
+                <div class="metric-value text-sm" id="lastScan">-</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let pollingInterval = null;
+
+        const profitChart = new Chart(document.getElementById('profitChart'), {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Profit', data: [], borderColor: '#10B981', tension: 0.1 }] },
+            options: { responsive: true, scales: { y: { beginAtZero: false } } }
+        });
+
+        const tradeChart = new Chart(document.getElementById('tradeChart'), {
+            type: 'doughnut',
+            data: { labels: ['Wins', 'Losses'], datasets: [{ data: [0, 0], backgroundColor: ['#10B981', '#EF4444'] }] },
+            options: { responsive: true }
+        });
+
+        async function fetchMetrics() {
+            try {
+                const [healthRes, portfolioRes] = await Promise.all([
+                    fetch(`${API_BASE}/health`),
+                    fetch(`${API_BASE}/portfolio`)
+                ]);
+
+                const health = await healthRes.json();
+                const portfolio = await portfolioRes.json();
+
+                document.getElementById('profit').textContent = `$${(portfolio.total_profit / 100).toFixed(2)}`;
+                document.getElementById('balance').textContent = `$${(portfolio.cash_balance / 100).toFixed(2)}`;
+                document.getElementById('positions').textContent = portfolio.open_positions;
+                document.getElementById('winRate').textContent = `${portfolio.win_rate.toFixed(1)}%`;
+                document.getElementById('totalTrades').textContent = portfolio.completed_trades;
+                document.getElementById('status').textContent = health.bot_running ? 'Running' : 'Stopped';
+                document.getElementById('status').className = `px-3 py-1 rounded-full text-sm ${health.bot_running ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`;
+
+                document.getElementById('toggleBtn').textContent = health.bot_running ? 'Stop' : 'Start';
+                document.getElementById('toggleBtn').className = `px-4 py-2 ${health.bot_running ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white rounded`;
+
+            } catch (error) {
+                console.error('Failed to fetch metrics:', error);
+            }
+        }
+
+        async function toggleBot() {
+            const status = document.getElementById('status').textContent;
+            const endpoint = status === 'Running' ? '/stop' : '/start';
+            await fetch(`${API_BASE}${endpoint}`, { method: 'POST' });
+            fetchMetrics();
+        }
+
+        document.getElementById('toggleBtn').addEventListener('click', toggleBot);
+        fetchMetrics();
+        pollingInterval = setInterval(fetchMetrics, 2000);
+    </script>
+</body>
+</html>

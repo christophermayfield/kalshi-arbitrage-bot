@@ -1,0 +1,234 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trading-system
+  labels:
+    name: trading-system
+    environment: production
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: arbitrage-config
+  namespace: trading-system
+data:
+  production.yaml: |
+    # Production Configuration
+    database:
+      host: "postgres.default.svc.cluster.local"
+      port: 5432
+      name: "arbitrage_prod"
+      pool_size: 20
+      max_overflow: 30
+    
+    exchanges:
+      kalshi:
+        base_url: "https://trading-api.kalshi.com"
+        timeout: 30
+        retry_attempts: 3
+      
+    risk_management:
+      max_position_size: 0.05
+      max_daily_loss: 1000.0
+      portfolio_heat: 0.8
+    
+    strategies:
+      statistical_arbitrage:
+        enabled: true
+        lookback_period: 30
+        z_score_threshold: 2.0
+      
+      mean_reversion:
+        enabled: true
+        lookback_period: 20
+        rsi_period: 14
+    
+    monitoring:
+      enabled: true
+      metrics_port: 9000
+      health_check_interval: 30
+    
+    logging:
+      level: "INFO"
+      format: "json"
+      output: "stdout"
+      
+    api:
+      host: "0.0.0.0"
+      port: 8000
+      workers: 4
+      cors_enabled: true
+    
+    ml:
+      model_registry_path: "/app/data/models"
+      training_batch_size: 1000
+      feature_window: 100
+    
+    backtesting:
+      initial_capital: 10000.0
+      commission_rate: 0.001
+      slippage_model: "linear"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: arbitrage-secrets
+  namespace: trading-system
+type: Opaque
+data:
+  # Base64 encoded values - replace with actual secrets
+  database-url: cG9zdGdyZXNxbDovL3VzZXI6cGFzc0Bwb3N0Z3Jlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsL2FyYml0cmFnZV9wcm9k
+  api-tokens: W3sidG9rZW4iOiAic2VjcmV0X2FwaV90b2tlbl8xIiwgInVzZXIiOiAidHJhZGVyIn1d
+  exchange-api-keys: eyJrYWxzaGkiOiAie3NlY3JldF9rZXl9IiwgIm90aGVyX2V4Y2hhbmdlIjogInthbm90aGVyX3NlY3JldF9rZXl9In0=
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: arbitrage-data-pvc
+  namespace: trading-system
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: arbitrage-logs-pvc
+  namespace: trading-system
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: arbitrage-bot-sa
+  namespace: trading-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: trading-system
+  name: arbitrage-bot-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: arbitrage-bot-rolebinding
+  namespace: trading-system
+subjects:
+- kind: ServiceAccount
+  name: arbitrage-bot-sa
+  namespace: trading-system
+roleRef:
+  kind: Role
+  name: arbitrage-bot-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: arbitrage-bot-monitor
+  namespace: trading-system
+  labels:
+    app: arbitrage-bot
+spec:
+  selector:
+    matchLabels:
+      app: arbitrage-bot
+  endpoints:
+  - port: monitoring
+    interval: 30s
+    path: /metrics
+---
+apiVersion: policy/v1
+kind: NetworkPolicy
+metadata:
+  name: arbitrage-bot-network-policy
+  namespace: trading-system
+spec:
+  podSelector:
+    matchLabels:
+      app: arbitrage-bot
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app: arbitrage-bot
+    ports:
+    - protocol: TCP
+      port: 8000
+    - protocol: TCP
+      port: 9000
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: arbitrage-backup
+  namespace: trading-system
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: postgres:14
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: arbitrage-secrets
+                  key: database-url
+            command:
+            - /bin/bash
+            - -c
+            - |
+              pg_dump $(echo $PGPASSWORD | cut -d'@' -f2 | sed 's|postgres://.*@||') | \
+              gzip > /backup/arbitrage-$(date +%Y%m%d_%H%M%S).sql.gz
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: arbitrage-data-pvc
+          restartPolicy: OnFailure
