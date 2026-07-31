@@ -1,8 +1,8 @@
 kalshi:
   api_key_id: "316aaeb6-6073-4550-987c-83db1649fcfd"
   private_key_path: "~/.kalshi/private-key.pem"
-  base_url: "https://api.elections.kalshi.com"
-  demo_mode: false
+  base_url: "https://api-sandbox.elections.kalshi.com"
+  demo_mode: true
 
 # Predictive Models Configuration
 predictive_models:
@@ -68,9 +68,9 @@ multi_exchange:
 trading:
   paper_mode: false
   arbitrage_threshold: 0.99
-  min_profit_cents: 10
-  max_position_contracts: 1000
-  max_order_value_cents: 10000
+  min_profit_cents: 25              # $0.25 minimum profit threshold
+  max_position_contracts: 100       # Conservative for $1k capital learning
+  max_order_value_cents: 7500       # $75 max per trade (7.5% of capital)
   order_timeout_seconds: 30
   retry_attempts: 3
   retry_delay_seconds: 1
@@ -87,7 +87,7 @@ monitoring:
   notification_enabled: false
   notification_webhook: ""
   metrics_port: 8000
-  environment: "development"
+  environment: "sandbox"
 
 sentry:
   enabled: false
@@ -114,8 +114,8 @@ notifications:
     chat_id: ""
 
 risk:
-  max_daily_loss_cents: 10000
-  max_open_positions: 50
+  max_daily_loss_cents: 7500        # $75 daily loss limit (7.5% of capital)
+  max_open_positions: 10            # Moderate - allows concurrent trades
   circuit_breaker_threshold: 5
   circuit_breaker_window_seconds: 300
 
@@ -156,24 +156,24 @@ arbitrage:
 limited_risk:
   enabled: true
   auto_enable_balance_cents: 100000      # Auto-enable when balance < $1,000
-  min_trade_cents: 1000                   # $10 minimum trade size
-  max_trade_cents: 1500                   # $15 maximum trade size
-  max_daily_trades: 10                    # Maximum 10 trades per day
-  max_daily_loss_cents: 5000              # $50 daily loss limit
-  cooldown_seconds: 60                    # 60 second cooldown between trades
+  min_trade_cents: 500                    # $5 minimum trade size (scaled for $1k)
+  max_trade_cents: 7500                   # $75 maximum trade size (matches max_order_value_cents)
+  max_daily_trades: 15                    # Maximum 15 trades per day for learning
+  max_daily_loss_cents: 7500              # $75 daily loss limit (matches risk limit)
+  cooldown_seconds: 30                    # 30 second cooldown between trades
   require_confirmation: false             # Execute automatically
-  min_profit_after_fees_cents: 50         # Minimum $0.50 profit after fees
+  min_profit_after_fees_cents: 25         # Minimum $0.25 profit after fees
   max_fee_percent_of_profit: 50.0         # Skip if fees > 50% of profit
   illiquid_volume_threshold_cents: 100000 # Skip markets with <$1,000 daily volume
-  
+
   # Progressive scaling - increase trade size after successful streaks
   progressive_scaling:
     enabled: true
     threshold_trades: 10                  # After 10 trades
     profitable_streak_required: true      # Only if profitable
     increment_cents: 500                  # Increase by $5 per level
-    max_trade_cents: 3000                 # Cap at $30 maximum
-  
+    max_trade_cents: 10000                # Cap at $100 maximum after scaling
+
   # Market exclusions for illiquid markets
   excluded_markets: []                    # Add specific market IDs to exclude
 
