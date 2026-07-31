@@ -268,7 +268,8 @@ class ProductionArbitrageBot:
 
             # Initialize WebSocket (optional)
             if self.config.get("websocket.enabled", True):
-                self.ws_client = KalshiWebSocketClient(self.config)
+                base_url = self.config.get("kalshi.base_url", "https://api.elections.kalshi.com")
+                self.ws_client = KalshiWebSocketClient(base_url=base_url, demo=self.config.get("kalshi.demo_mode", False))
                 logger.info("✓ WebSocket client initialized")
 
         except Exception as e:
