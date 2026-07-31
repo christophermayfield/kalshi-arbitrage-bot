@@ -4,7 +4,7 @@ import asyncio
 import logging
 import time
 from typing import Dict, List, Optional, Tuple, Any, Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 import httpx
@@ -143,7 +143,7 @@ class HighFrequencyExecutor:
         """Execute arbitrage opportunity with ultra-low latency."""
         execution_id = f"exec_{int(time.time() * 1000000)}"
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         metrics = ExecutionMetrics(
             execution_id=execution_id,
@@ -162,7 +162,7 @@ class HighFrequencyExecutor:
             async with self.semaphore:
                 success, result = await self._execute_with_retry(opportunity, metrics)
 
-                end_time = datetime.utcnow()
+                end_time = datetime.now(timezone.utc)
                 metrics.end_time = end_time
                 metrics.latency_ms = (end_time - start_time).total_seconds() * 1000
                 metrics.success = success
@@ -195,7 +195,7 @@ class HighFrequencyExecutor:
 
         except Exception as e:
             logger.error(f"Fast execution failed for {execution_id}: {e}")
-            metrics.end_time = datetime.utcnow()
+            metrics.end_time = datetime.now(timezone.utc)
             metrics.error_message = str(e)
             metrics.success = False
             return metrics
@@ -493,7 +493,7 @@ class HighFrequencyExecutor:
                 "status": "filled",
                 "filled_quantity": 100,
                 "filled_price": 5000,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
             logger.error(f"Fast status fetch failed: {e}")
@@ -536,7 +536,7 @@ class HighFrequencyExecutor:
 
     async def cleanup_old_orders(self):
         """Clean up old order data from tracking."""
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
         # Clean up active orders that are too old
         old_orders = [

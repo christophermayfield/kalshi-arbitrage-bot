@@ -1,5 +1,5 @@
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import numpy as np
 import pandas as pd
 
@@ -189,13 +189,13 @@ class FeatureStore:
 
     def save(self, key: str, features: Dict[str, float]) -> None:
         self._store[key] = features
-        self._timestamps[key] = datetime.utcnow()
+        self._timestamps[key] = datetime.now(timezone.utc)
 
     def load(self, key: str) -> Optional[Dict[str, float]]:
         if key not in self._store:
             return None
 
-        if datetime.utcnow() - self._timestamps[key] > timedelta(hours=self.ttl_hours):
+        if datetime.now(timezone.utc) - self._timestamps[key] > timedelta(hours=self.ttl_hours):
             del self._store[key]
             del self._timestamps[key]
             return None
@@ -203,7 +203,7 @@ class FeatureStore:
         return self._store[key]
 
     def cleanup(self) -> int:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         keys_to_remove = [
             k for k, t in self._timestamps.items()
             if now - t > timedelta(hours=self.ttl_hours)

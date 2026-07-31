@@ -2,10 +2,11 @@
 
 import asyncio
 import logging
+import time
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional, Tuple, Union
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from enum import Enum
 
@@ -150,7 +151,7 @@ class OpportunityScorer:
             volatility_score=volatility_score,
             speed_score=speed_score,
             risk_score=risk_score,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             market_conditions=market_conditions,
             execution_priority=execution_priority,
         )
@@ -248,7 +249,7 @@ class OpportunityScorer:
             conditions.update(market_status)
 
         # Get time-based conditions
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         conditions.update(
             {
                 "hour_of_day": now.hour,
@@ -438,7 +439,7 @@ class OpportunityScorer:
         current_scores = list(self.scored_opportunities.values())
 
         # Filter by minimum score and timestamp (last 5 minutes)
-        cutoff_time = datetime.utcnow() - timedelta(minutes=5)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=5)
 
         filtered_scores = [
             score
@@ -541,7 +542,7 @@ class OpportunityScorer:
 
     async def cleanup_old_scores(self):
         """Clean up old opportunity scores."""
-        cutoff_time = datetime.utcnow() - timedelta(minutes=10)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=10)
 
         old_scores = [
             opp_id

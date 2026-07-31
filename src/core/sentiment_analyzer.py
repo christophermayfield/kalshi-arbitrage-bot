@@ -1,5 +1,5 @@
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import aiohttp
 import json
 from dataclasses import dataclass
@@ -79,7 +79,7 @@ class NewsSentimentAnalyzer:
                         score=score,
                         confidence=0.8,  # Finnhub confidence
                         timestamp=article.get(
-                            "datetime", datetime.utcnow().isoformat()
+                            "datetime", datetime.now(timezone.utc).isoformat()
                         ),
                         text=article.get("headline", ""),
                     )
@@ -141,7 +141,7 @@ class NewsSentimentAnalyzer:
                             confidence=abs(
                                 compound_score
                             ),  # Higher confidence for extreme scores
-                            timestamp=datetime.utcnow().isoformat(),
+                            timestamp=datetime.now(timezone.utc).isoformat(),
                             text=article["title"],
                         )
                     )
@@ -219,7 +219,7 @@ class SocialSentimentAnalyzer:
                             score=compound_score,
                             confidence=abs(compound_score) * engagement_weight,
                             timestamp=tweet.get(
-                                "created_at", datetime.utcnow().isoformat()
+                                "created_at", datetime.now(timezone.utc).isoformat()
                             ),
                             text=tweet["text"],
                         )
@@ -281,7 +281,7 @@ class SocialSentimentAnalyzer:
                             score=compound_score,
                             confidence=abs(compound_score),
                             timestamp=message.get(
-                                "created_at", datetime.utcnow().isoformat()
+                                "created_at", datetime.now(timezone.utc).isoformat()
                             ),
                             text=message["body"],
                         )
@@ -368,7 +368,7 @@ class SentimentAggregator:
             by_source[score.source].append(score)
 
         # Calculate weighted average (recent sources get higher weight)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         total_weight = 0
         weighted_score = 0
         weighted_confidence = 0
@@ -405,7 +405,7 @@ class SentimentAggregator:
             "market_id": scores[0].source if scores else "unknown",
             "sentiment_score": final_score,
             "confidence": final_confidence,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "source_count": len(by_source),
             "total_articles": len(scores),
             "source_breakdown": {
@@ -471,14 +471,17 @@ class SentimentAggregator:
 
 
 async def get_market_sentiment_signal(
-    market_id: str, event_keywords: List[str] = None
+    market_id: str,
+    event_keywords: List[str] = None,
+    aggregator: Optional[SentimentAggregator] = None,
 ) -> Dict[str, Any]:
     """
     Get sentiment signal for a market
     Returns signal indicating sentiment influence on trading decisions
     """
     try:
-        aggregator = SentimentAggregator()
+        if aggregator is None:
+            aggregator = SentimentAggregator()
         sentiment_data = await aggregator.get_market_sentiment(
             market_id, event_keywords
         )
@@ -510,7 +513,7 @@ async def get_market_sentiment_signal(
             "confidence": confidence,
             "sentiment_score": sentiment_score,
             "market_id": market_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "source_count": sentiment_data.get("source_count", 0),
             "total_articles": sentiment_data.get("total_articles", 0),
         }

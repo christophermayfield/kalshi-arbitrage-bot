@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, Optional, List
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 import httpx
@@ -29,7 +29,7 @@ class WebhookMessage:
 
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat()
+            self.timestamp = datetime.now(timezone.utc).isoformat()
         if self.fields is None:
             self.fields = {}
 

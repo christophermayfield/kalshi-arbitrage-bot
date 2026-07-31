@@ -51,6 +51,20 @@ sentiment_analysis:
       stocktwits: 0.1
     confidence_threshold: 0.5
 
+ml:
+  enabled: true
+  predictive_weight: 0.3
+
+sentiment:
+  enabled: true
+  weight: 0.2
+
+multi_exchange:
+  enabled: false       # flip to true when Polymarket API keys are available
+  scan_interval: 30
+  min_profit_cents: 20
+  auto_execute: false
+
 trading:
   paper_mode: false
   arbitrage_threshold: 0.99
@@ -117,7 +131,8 @@ api:
   rate_limit_burst: 10
 
 database:
-  path: "data/arbitrage.db"
+  # url: "postgresql://user:pass@localhost/arbitrage"  # set DATABASE_URL env var for Postgres
+  path: "data/arbitrage.db"  # used when DATABASE_URL is not set
   cleanup_days: 30
 
 redis:

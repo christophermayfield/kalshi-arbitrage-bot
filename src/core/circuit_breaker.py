@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.utils.logging_utils import get_logger
 
@@ -81,7 +81,7 @@ class CircuitBreaker:
     async def _transition_to_open(self) -> None:
         self._state = CircuitState.OPEN
         self._last_failure_time = time.time()
-        self._stats.last_failure_time = datetime.utcnow().isoformat()
+        self._stats.last_failure_time = datetime.now(timezone.utc).isoformat()
         self._stats.state_transitions += 1
         logger.warning(f"Circuit {self.name}: CLOSED/HALF_OPEN -> OPEN")
 
@@ -118,7 +118,7 @@ class CircuitBreaker:
             async with self._lock:
                 self._stats.successful_calls += 1
                 self._last_success_time = time.time()
-                self._stats.last_success_time = datetime.utcnow().isoformat()
+                self._stats.last_success_time = datetime.now(timezone.utc).isoformat()
                 self._success_count += 1
 
                 if self._state == CircuitState.HALF_OPEN:
@@ -131,7 +131,7 @@ class CircuitBreaker:
             async with self._lock:
                 self._stats.failed_calls += 1
                 self._last_failure_time = time.time()
-                self._stats.last_failure_time = datetime.utcnow().isoformat()
+                self._stats.last_failure_time = datetime.now(timezone.utc).isoformat()
                 self._failure_count += 1
 
                 if self._state == CircuitState.CLOSED:

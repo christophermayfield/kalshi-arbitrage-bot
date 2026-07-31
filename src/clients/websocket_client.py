@@ -3,7 +3,7 @@ import json
 import base64
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, Set, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 
 import websockets
 from websockets.exceptions import ConnectionClosed, WebSocketException
@@ -20,7 +20,7 @@ logger = get_logger("websocket")
 class WebSocketMessage:
     type: str
     data: Dict[str, Any]
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class WebSocketClient:
@@ -233,7 +233,7 @@ class KalshiWebSocketClient(WebSocketClient):
         auth_message = {
             'type': 'auth',
             'api_key_id': self._api_key_id,
-            'timestamp': str(int(datetime.utcnow().timestamp() * 1000))
+            'timestamp': str(int(datetime.now(timezone.utc).timestamp() * 1000))
         }
 
         message_str = auth_message['timestamp']

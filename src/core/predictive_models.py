@@ -1,5 +1,5 @@
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import numpy as np
 import pandas as pd
 from prophet import Prophet
@@ -20,7 +20,7 @@ class ProphetForecaster:
         self.retrain_interval_hours = retrain_interval_hours
         self.prediction_horizon = prediction_horizon
         self.model = None
-        self.last_retrain = datetime.utcnow()
+        self.last_retrain = datetime.now(timezone.utc)
         self.db = Database()
 
     def _prepare_data(self, market_id: str) -> pd.DataFrame:
@@ -62,7 +62,7 @@ class ProphetForecaster:
             )
 
             self.model.fit(df)
-            self.last_retrain = datetime.utcnow()
+            self.last_retrain = datetime.now(timezone.utc)
 
             logger.info(f"Successfully retrained Prophet model for market {market_id}")
             return True
@@ -75,7 +75,7 @@ class ProphetForecaster:
         self, market_id: str, include_uncertainty: bool = True
     ) -> Optional[Dict[str, Any]]:
         """Generate predictions using Prophet"""
-        if not self.model or datetime.utcnow() - self.last_retrain > timedelta(
+        if not self.model or datetime.now(timezone.utc) - self.last_retrain > timedelta(
             hours=self.retrain_interval_hours
         ):
             if not self.retrain(market_id):
@@ -93,7 +93,7 @@ class ProphetForecaster:
             result = {
                 "market_id": market_id,
                 "predicted_price": float(prediction["yhat"]),
-                "prediction_timestamp": datetime.utcnow().isoformat(),
+                "prediction_timestamp": datetime.now(timezone.utc).isoformat(),
                 "method": "prophet",
                 "horizon_minutes": self.prediction_horizon,
                 "model_last_retrain": self.last_retrain.isoformat(),
@@ -210,7 +210,7 @@ class TFTForecaster:
             result = {
                 "market_id": market_id,
                 "predicted_price": float(unscaled_prediction.values[-1][0]),
-                "prediction_timestamp": datetime.utcnow().isoformat(),
+                "prediction_timestamp": datetime.now(timezone.utc).isoformat(),
                 "method": "tft",
                 "horizon_minutes": self.prediction_horizon,
                 "confidence": float(unscaled_prediction.values[-1][0])
@@ -292,7 +292,7 @@ class TFTForecaster:
             result = {
                 "market_id": market_id,
                 "predicted_price": float(unscaled_prediction.values[-1][0]),
-                "prediction_timestamp": datetime.utcnow().isoformat(),
+                "prediction_timestamp": datetime.now(timezone.utc).isoformat(),
                 "method": "lstm",
                 "horizon_minutes": self.prediction_horizon,
                 "confidence": float(unscaled_prediction.values[-1][0])
@@ -354,7 +354,7 @@ class EnsembleForecaster:
             "upper_bound": 0,
             "uncertainty": 0,
             "confidence": 0,
-            "prediction_timestamp": datetime.utcnow().isoformat(),
+            "prediction_timestamp": datetime.now(timezone.utc).isoformat(),
             "method": "ensemble",
         }
 
@@ -399,13 +399,15 @@ async def get_arbitrage_timing_signal(
     current_spread: float,
     recent_prices: List[float],
     prediction_horizon_minutes: int = 5,
+    forecaster: Optional[EnsembleForecaster] = None,
 ) -> Dict[str, Any]:
     """
     Get timing signal for arbitrage based on predictions
     Returns signal indicating whether to enter/hold/wait
     """
     try:
-        forecaster = EnsembleForecaster()
+        if forecaster is None:
+            forecaster = EnsembleForecaster()
         prediction = forecaster.get_weighted_prediction(market_id, recent_prices)
 
         if not prediction:
@@ -436,7 +438,7 @@ async def get_arbitrage_timing_signal(
             "predicted_price": predicted_price,
             "current_spread": current_spread,
             "market_id": market_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:

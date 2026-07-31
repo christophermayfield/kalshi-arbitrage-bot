@@ -4,7 +4,7 @@ import asyncio
 import logging
 import time
 from typing import Dict, List, Any, Optional, Set
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor
 
 from src.core.orderbook import OrderBook
@@ -340,7 +340,7 @@ class HighFrequencyScanner:
                         orderbook_data = {
                             "bids": [bid.__dict__ for bid in result.bids],
                             "asks": [ask.__dict__ for ask in result.asks],
-                            "timestamp": datetime.utcnow().isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                         }
                         await self.cache_manager.cache.set_orderbook(
                             market_id, orderbook_data
@@ -450,7 +450,7 @@ class HighFrequencyScanner:
 
         # Cache latest scan summary
         scan_summary = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "opportunity_count": opportunity_count,
             "scan_time_ms": scan_time * 1000,
             "scans_per_second": 1000 / self.scan_interval_ms,

@@ -419,7 +419,7 @@ class StrategyOptimizer:
                         param_features_scaled = scaler.transform([param_features])
                         predicted_pnl = model.predict(param_features_scaled)[0]
                         return -predicted_pnl  # Minimize negative P&L
-                except:
+                except (ValueError, IndexError, TypeError):
                     return -np.inf
                 
                 return -np.inf
@@ -860,8 +860,8 @@ def calculate_optimization_schedule(strategy: str,
             return 3600  # Optimize every hour
         else:
             return 7200  # Optimize every 2 hours
-    
-    except:
+
+    except (ValueError, TypeError, AttributeError):
         return 3600
 
 def calculate_optimization_stability(recent_results: List[OptimizationResult]) -> float:

@@ -6,7 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import asyncio
 import logging
@@ -168,7 +168,7 @@ async def serve_dashboard():
 
 from fastapi import Request
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict
 
 _rate_limit_store: Dict[str, list] = defaultdict(list)
@@ -179,7 +179,7 @@ _RATE_WINDOW = 60  # seconds
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     client_ip = request.client.host if request.client else "unknown"
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Clean old entries
     _rate_limit_store[client_ip] = [
@@ -317,7 +317,7 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "2.0.0",
         "uptime": "0h 0m",  # TODO: Implement actual uptime tracking
     }
@@ -332,7 +332,7 @@ async def get_bot_status(token: str = Depends(verify_token)):
 
         # Get status from all major components
         status = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "bot": {
                 "running": True,  # TODO: Get actual status
                 "uptime": "2h 15m",  # TODO: Calculate actual uptime
@@ -345,7 +345,7 @@ async def get_bot_status(token: str = Depends(verify_token)):
                 "success_rate": 0.91,
                 "daily_pnl": 485.25,
                 "total_pnl": 5420.80,
-                "last_trade": datetime.utcnow().isoformat(),
+                "last_trade": datetime.now(timezone.utc).isoformat(),
             },
             "portfolio": {
                 "total_value": 25420.80,
@@ -379,7 +379,7 @@ async def shutdown_bot(
 
         return {
             "message": "Bot shutdown initiated",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -444,7 +444,7 @@ async def toggle_strategy(
         return {
             "strategy": strategy_name,
             "enabled": enabled,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -469,7 +469,7 @@ async def update_strategy_config(
         return {
             "strategy": strategy_name,
             "config_updated": True,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -490,7 +490,7 @@ async def run_backtest(
         backtester = AdvancedBacktester()
 
         # Queue backtest execution
-        task_id = f"backtest_{datetime.utcnow().timestamp()}"
+        task_id = f"backtest_{datetime.now(timezone.utc).timestamp()}"
         background_tasks.add_task(execute_backtest, task_id, backtester, request.dict())
 
         return {
@@ -571,7 +571,7 @@ async def get_performance_analytics(
 
         # Get performance data
         performance_data = await attributor.get_analytics(
-            start_date=datetime.utcnow() - timedelta(days=7), end_date=datetime.utcnow()
+            start_date=datetime.now(timezone.utc) - timedelta(days=7), end_date=datetime.now(timezone.utc)
         )
 
         return performance_data
@@ -591,7 +591,7 @@ async def get_performance_attribution(
         attributor = PerformanceAttributor()
 
         attribution_data = await attributor.get_attribution_analysis(
-            start_date=datetime.utcnow() - timedelta(days=7), end_date=datetime.utcnow()
+            start_date=datetime.now(timezone.utc) - timedelta(days=7), end_date=datetime.now(timezone.utc)
         )
 
         return attribution_data
@@ -614,7 +614,7 @@ async def submit_order(order: OrderRequest, token: str = Depends(verify_token)):
         return {
             "order_id": order_id,
             "status": "submitted",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -698,8 +698,8 @@ async def create_stop_loss_order(
             "stop_price": order.stop_price,
             "status": "active",
             "time_in_force": order.time_in_force,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         _advanced_orders.append(new_order)
@@ -731,8 +731,8 @@ async def create_take_profit_order(
             "target_price": order.target_price,
             "status": "active",
             "time_in_force": order.time_in_force,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         _advanced_orders.append(new_order)
@@ -765,8 +765,8 @@ async def create_oco_order(
             "target_price": order.target_price,
             "status": "active",
             "time_in_force": order.time_in_force,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         _advanced_orders.append(new_order)
@@ -800,8 +800,8 @@ async def create_trailing_stop_order(
             "current_stop": order.activation_price,
             "status": "active",
             "time_in_force": order.time_in_force,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         _advanced_orders.append(new_order)
@@ -836,8 +836,8 @@ async def create_twap_order(
             "interval_seconds": order.interval_seconds,
             "status": "active",
             "time_in_force": order.time_in_force,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         _advanced_orders.append(new_order)
@@ -896,7 +896,7 @@ async def cancel_advanced_order(order_id: str, token: str = Depends(verify_token
         for order in _advanced_orders:
             if order.get("order_id") == order_id:
                 order["status"] = "cancelled"
-                order["updated_at"] = datetime.utcnow().isoformat()
+                order["updated_at"] = datetime.now(timezone.utc).isoformat()
                 return {"status": "cancelled", "order": order}
 
         raise HTTPException(status_code=404, detail="Order not found")
@@ -919,7 +919,7 @@ async def get_risk_metrics(token: str = Depends(verify_token)):
     try:
         metrics = _risk_analyzer.get_all_metrics()
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "var_95": metrics.var_95,
             "var_99": metrics.var_99,
             "cvar_95": metrics.cvar_95,
@@ -941,7 +941,7 @@ async def get_stress_tests(token: str = Depends(verify_token)):
     try:
         stress_results = _risk_analyzer.run_stress_test()
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "scenarios": stress_results,
         }
     except Exception as e:
@@ -958,7 +958,7 @@ async def get_rolling_metrics(
     try:
         metrics = _risk_analyzer.get_rolling_metrics(window)
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "window": window,
             "metrics": metrics,
         }
@@ -999,7 +999,7 @@ async def get_correlations(
         if market_id:
             correlations = _correlation_analyzer.get_top_correlations(market_id, limit)
             return {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "market_id": market_id,
                 "correlations": [
                     {
@@ -1015,7 +1015,7 @@ async def get_correlations(
         else:
             pairs = _correlation_analyzer.find_cointegrated_pairs(0.7)
             return {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "cointegrated_pairs": [
                     {
                         "market_1": c.market_1,
@@ -1059,7 +1059,7 @@ async def get_correlation_matrix(
         market_list = markets.split(",") if markets else None
         matrix = _correlation_analyzer.get_correlation_matrix(market_list)
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "matrix": matrix,
         }
     except Exception as e:
@@ -1072,7 +1072,7 @@ async def get_analytics_stats(token: str = Depends(verify_token)):
     """Get analytics engine statistics."""
     try:
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "risk": {
                 "sample_size": len(_risk_analyzer._returns_history),
             },
@@ -1193,7 +1193,7 @@ async def create_journal_entry(
     try:
         new_entry = {
             "id": _journal_id_counter,
-            "date": entry.get("date", datetime.utcnow().isoformat()),
+            "date": entry.get("date", datetime.now(timezone.utc).isoformat()),
             "market_id": entry.get("market_id"),
             "direction": entry.get("direction", "long"),
             "entry_price": entry.get("entry_price"),
@@ -1203,7 +1203,7 @@ async def create_journal_entry(
             "status": entry.get("status", "open"),
             "notes": entry.get("notes", ""),
             "tags": entry.get("tags", []),
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         _journal_entries.append(new_entry)
@@ -1237,7 +1237,7 @@ async def update_journal_entry(
                         "status": entry.get("status", e.get("status")),
                         "notes": entry.get("notes", e.get("notes")),
                         "tags": entry.get("tags", e.get("tags")),
-                        "updated_at": datetime.utcnow().isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
                     }
                 )
                 return {"status": "updated", "entry": _journal_entries[i]}
@@ -1474,7 +1474,7 @@ def add_notification(title: str, message: str, type: str = "info", data: dict = 
         "type": type,
         "data": data or {},
         "read": False,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     _notifications.insert(0, notification)
@@ -1561,7 +1561,7 @@ async def get_orderbooks_dashboard(
             )
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "orderbooks": orderbooks,
             "total_markets": len(bot.orderbooks),
         }
@@ -1577,7 +1577,7 @@ async def get_dashboard_summary():
         from src.main import bot
 
         summary = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "bot": {
                 "running": bot.running,
                 "executed_count": bot.executed_count,
@@ -1664,7 +1664,7 @@ async def create_ml_model(
         )
 
         # Queue training in background
-        task_id = f"ml_training_{datetime.utcnow().timestamp()}"
+        task_id = f"ml_training_{datetime.now(timezone.utc).timestamp()}"
         background_tasks.add_task(
             execute_ml_training, task_id, model_id, request.dict()
         )
@@ -1673,7 +1673,7 @@ async def create_ml_model(
             "model_id": model_id,
             "task_id": task_id,
             "status": "training_started",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -1725,7 +1725,7 @@ async def deploy_ml_model(
             "deployment_id": deployment_id,
             "model_id": model_id,
             "status": "deployment_started",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -2032,7 +2032,7 @@ async def get_arbitrage_status(token: str = Depends(verify_token)):
         "started_at": _detection_state["started_at"],
         "opportunities_found": _detection_state["opportunities_found"],
         "last_opportunity": _detection_state["last_opportunity"],
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2040,7 +2040,7 @@ async def get_arbitrage_status(token: str = Depends(verify_token)):
 async def start_arbitrage_detection(token: str = Depends(verify_token)):
     """Start arbitrage detection."""
     _detection_state["running"] = True
-    _detection_state["started_at"] = datetime.utcnow().isoformat()
+    _detection_state["started_at"] = datetime.now(timezone.utc).isoformat()
 
     add_notification(
         "Arbitrage Detection Started",
@@ -2050,7 +2050,7 @@ async def start_arbitrage_detection(token: str = Depends(verify_token)):
 
     return {
         "status": "started",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2067,7 +2067,7 @@ async def stop_arbitrage_detection(token: str = Depends(verify_token)):
 
     return {
         "status": "stopped",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2079,7 +2079,7 @@ async def get_arbitrage_opportunities(
     return {
         "opportunities": _arbitrage_opportunities[-limit:],
         "total": len(_arbitrage_opportunities),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2142,7 +2142,7 @@ async def get_live_markets(limit: int = 50, token: str = Depends(verify_token)):
         return {
             "markets": markets_data,
             "count": len(markets_data),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
         logger.error(f"Failed to get live markets: {e}")
@@ -2170,7 +2170,7 @@ async def get_market_orderbook(market_id: str, token: str = Depends(verify_token
                 "mid_price": orderbook.get_mid_price(),
                 "spread": orderbook.get_spread(),
                 "spread_percent": orderbook.get_spread_percent(),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         if hasattr(bot, "client"):
@@ -2231,7 +2231,7 @@ async def get_exchange_status(token: str = Depends(verify_token)):
         "paper_mode": _exchange_config["paper_mode"],
         "config": _exchange_config,
         "stats": _trade_stats,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2253,7 +2253,7 @@ async def place_order(order: ExchangeOrderRequest, token: str = Depends(verify_t
     if _trade_stats["daily_pnl"] <= -_exchange_config["max_daily_loss"]:
         raise HTTPException(status_code=400, detail="Daily loss limit reached")
 
-    order_id = f"order_{datetime.utcnow().timestamp()}"
+    order_id = f"order_{datetime.now(timezone.utc).timestamp()}"
 
     _trade_stats["total_trades"] += 1
 
@@ -2271,7 +2271,7 @@ async def place_order(order: ExchangeOrderRequest, token: str = Depends(verify_t
         "price": order.price,
         "order_type": order.order_type,
         "status": status,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2283,7 +2283,7 @@ async def get_orders(
     return {
         "orders": [],
         "total": 0,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2293,7 +2293,7 @@ async def get_order(order_id: str, token: str = Depends(verify_token)):
     return {
         "order_id": order_id,
         "status": "filled",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2303,7 +2303,7 @@ async def cancel_order(order_id: str, token: str = Depends(verify_token)):
     return {
         "order_id": order_id,
         "status": "cancelled",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2312,7 +2312,7 @@ async def get_positions(token: str = Depends(verify_token)):
     """Get current positions."""
     return {
         "positions": [],
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2322,7 +2322,7 @@ async def get_balance(token: str = Depends(verify_token)):
     return {
         "balance": 10000,
         "available": 10000,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2333,7 +2333,7 @@ async def set_paper_mode(enabled: bool, token: str = Depends(verify_token)):
 
     return {
         "paper_mode": enabled,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2369,7 +2369,7 @@ async def get_auto_trading_status(token: str = Depends(verify_token)):
         "enabled": _auto_trading_config["enabled"],
         "config": _auto_trading_config.copy(),
         "history": _auto_trading_history[-10:] if _auto_trading_history else [],
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2384,7 +2384,7 @@ async def enable_auto_trading(
     entry = {
         "action": "enabled",
         "config": config.dict(),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     _auto_trading_history.append(entry)
 
@@ -2397,7 +2397,7 @@ async def enable_auto_trading(
     return {
         "status": "enabled",
         "config": _auto_trading_config.copy(),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2408,7 +2408,7 @@ async def disable_auto_trading(token: str = Depends(verify_token)):
 
     entry = {
         "action": "disabled",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     _auto_trading_history.append(entry)
 
@@ -2420,7 +2420,7 @@ async def disable_auto_trading(token: str = Depends(verify_token)):
 
     return {
         "status": "disabled",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2433,7 +2433,7 @@ async def update_auto_trading_config(
 
     return {
         "config": _auto_trading_config.copy(),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2486,7 +2486,7 @@ async def get_position_sizing_history(token: str = Depends(verify_token)):
     """Get historical position sizing calculations."""
     return {
         "calculations": [],
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2521,7 +2521,7 @@ async def list_spread_alerts(token: str = Depends(verify_token)):
     """List all spread alerts."""
     return {
         "alerts": _spread_alerts,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2537,14 +2537,14 @@ async def create_spread_alert(
         **alert.dict(),
         "triggered_count": 0,
         "last_triggered": None,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
     _spread_alerts.append(new_alert)
     _spread_alert_id += 1
 
     return {
         "alert": new_alert,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2556,7 +2556,7 @@ async def update_spread_alert(
     for a in _spread_alerts:
         if a["id"] == alert_id:
             a.update(alert.dict())
-            return {"alert": a, "timestamp": datetime.utcnow().isoformat()}
+            return {"alert": a, "timestamp": datetime.now(timezone.utc).isoformat()}
 
     raise HTTPException(status_code=404, detail="Alert not found")
 
@@ -2570,7 +2570,7 @@ async def delete_spread_alert(alert_id: int, token: str = Depends(verify_token))
     return {
         "status": "deleted",
         "alert_id": alert_id,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2580,7 +2580,7 @@ async def trigger_spread_alert(alert_id: int, token: str = Depends(verify_token)
     for a in _spread_alerts:
         if a["id"] == alert_id:
             a["triggered_count"] += 1
-            a["last_triggered"] = datetime.utcnow().isoformat()
+            a["last_triggered"] = datetime.now(timezone.utc).isoformat()
 
             add_notification(
                 "Spread Alert Triggered",
@@ -2589,7 +2589,7 @@ async def trigger_spread_alert(alert_id: int, token: str = Depends(verify_token)
                 {"alert_id": alert_id, "threshold": a["threshold"]},
             )
 
-            return {"alert": a, "timestamp": datetime.utcnow().isoformat()}
+            return {"alert": a, "timestamp": datetime.now(timezone.utc).isoformat()}
 
     raise HTTPException(status_code=404, detail="Alert not found")
 
@@ -2613,7 +2613,7 @@ async def enable_one_click_trading(token: str = Depends(verify_token)):
 
     return {
         "status": "enabled",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2625,7 +2625,7 @@ async def disable_one_click_trading(token: str = Depends(verify_token)):
 
     return {
         "status": "disabled",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2666,14 +2666,14 @@ async def execute_quick_trade(
         quantity = int(trade.account_balance * kelly_percent / 100)
 
     order_result = {
-        "order_id": f"qc_{datetime.utcnow().timestamp()}",
+        "order_id": f"qc_{datetime.now(timezone.utc).timestamp()}",
         "market_id": trade.market_id,
         "side": trade.side,
         "quantity": quantity,
         "order_type": trade.order_type,
         "price": trade.price,
         "status": "filled" if trade.order_type == "market" else "pending",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     add_notification(
@@ -2685,7 +2685,7 @@ async def execute_quick_trade(
 
     return {
         "order": order_result,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -2819,7 +2819,7 @@ async def save_trade_to_db(
             trade_data.get("price"),
             trade_data.get("order_type"),
             trade_data.get("status"),
-            trade_data.get("timestamp", datetime.utcnow().isoformat()),
+            trade_data.get("timestamp", datetime.now(timezone.utc).isoformat()),
             trade_data.get("pnl"),
         ),
     )
@@ -2863,7 +2863,7 @@ async def save_setting(key: str, value: str, token: str = Depends(verify_token))
         INSERT OR REPLACE INTO settings (key, value, updated_at)
         VALUES (?, ?, ?)
     """,
-        (key, value, datetime.utcnow().isoformat()),
+        (key, value, datetime.now(timezone.utc).isoformat()),
     )
 
     conn.commit()

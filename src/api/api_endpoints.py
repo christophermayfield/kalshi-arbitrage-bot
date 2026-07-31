@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.api.main_api import app
 from src.utils.config import Config
@@ -47,7 +47,7 @@ async def execute_opportunity(request):
         return JSONResponse({
             "success": success,
             "opportunity_id": opportunity_id,
-            "executed_at": datetime.utcnow().isoformat(),
+            "executed_at": datetime.now(timezone.utc).isoformat(),
             "message": "Opportunity executed successfully"
         })
         

@@ -2,7 +2,7 @@ import asyncio
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.utils.logging_utils import get_logger
 
@@ -68,7 +68,7 @@ class RateLimiter:
         return True, 0.0
 
     def _record_request(self, key: str) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if self._window_start is None or now - self._window_start > timedelta(minutes=1):
             self._window_start = now
             self._request_counts.clear()

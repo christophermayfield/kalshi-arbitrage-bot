@@ -1,7 +1,7 @@
 """Comprehensive audit logging and compliance system for arbitrage bot."""
 
 from typing import Dict, List, Optional, Any, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, asdict
 from enum import Enum
 import json
@@ -244,7 +244,7 @@ class AuditLogger:
             # Create audit event
             event = AuditEvent(
                 event_id=event_id,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 event_type=event_type,
                 user_id=user_id,
                 session_id=session_id,
@@ -278,7 +278,7 @@ class AuditLogger:
 
     def _generate_event_id(self) -> str:
         """Generate unique event ID."""
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         random_data = str(id(object())) + str(threading.get_ident())
         return hashlib.sha256(f"{timestamp}{random_data}".encode()).hexdigest()[:16]
 
@@ -416,7 +416,7 @@ class AuditLogger:
                 "violation_id": violation_id,
                 "rule_id": rule.rule_id,
                 "event_id": event.event_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "severity": self._map_severity_to_compliance(event.severity),
                 "description": f"Compliance rule '{rule.name}' violated: {event.description}",
                 "details": {
@@ -527,7 +527,7 @@ class AuditLogger:
     def _process_events(self):
         """Background thread to process audit events."""
         batch_events = []
-        last_flush = datetime.utcnow()
+        last_flush = datetime.now(timezone.utc)
 
         while not self._stop_event.is_set():
             try:
@@ -539,7 +539,7 @@ class AuditLogger:
                     pass
 
                 # Check if we should flush the batch
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 should_flush = len(batch_events) >= self.batch_size or (
                     batch_events and (now - last_flush).seconds >= self.flush_interval
                 )
@@ -604,7 +604,7 @@ class AuditLogger:
         **kwargs,
     ):
         """Context manager for audit operations."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         event_id = None
 
         try:
@@ -808,7 +808,7 @@ class AuditLogger:
     def cleanup_old_events(self, retention_days: int = 365) -> int:
         """Clean up old audit events based on retention policy."""
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()

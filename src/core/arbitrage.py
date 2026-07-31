@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 import asyncio
 
 from src.core.orderbook import OrderBook, OrderSide
@@ -37,7 +37,7 @@ class ArbitrageOpportunity:
     profit_cents: int = 0
     profit_percent: float = 0.0
     confidence: float = 0.0
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     fees: int = 0
     net_profit_cents: int = 0
     execution_window_seconds: int = 30
@@ -87,6 +87,7 @@ class ArbitrageDetector:
         sentiment_weight: float = 0.2,
         enable_statistical_arbitrage: bool = False,
         statistical_config: Optional[Dict[str, Any]] = None,
+        portfolio_manager=None,
     ):
         self.min_profit_cents = min_profit_cents
         self.min_profit_percent = min_profit_percent
@@ -114,6 +115,8 @@ class ArbitrageDetector:
                 config=statistical_config or {},
             )
 
+        self.portfolio_manager = portfolio_manager
+
         # Cache for recent prices and sentiment
         self._price_cache: Dict[str, List[float]] = {}
         self._sentiment_cache: Dict[str, Dict[str, Any]] = {}
@@ -138,17 +141,24 @@ class ArbitrageDetector:
         m2_sell_price = best_bid_2.price if best_bid_2 else 0
 
         if m1_sell_price and m2_buy_price and m1_sell_price > m2_buy_price:
+            from src.core.position_sizing import KellyCriterion
+            _portfolio_stats = self.portfolio_manager.get_stats().__dict__ if self.portfolio_manager else {}
+            _kelly = KellyCriterion()
+            _profit_pct = ((m1_sell_price - m2_buy_price) / m2_buy_price) * 100
+            _kelly_qty = _kelly.calculate_size(
+                {"confidence": 0.7, "profit_percent": _profit_pct}, _portfolio_stats
+            )
             quantity = min(
                 best_bid_1.count if best_bid_1 else 0,
                 best_ask_2.count if best_ask_2 else 0,
-                100,
+                _kelly_qty,
             )
             gross_profit = (m1_sell_price - m2_buy_price) * quantity
             fees = int(gross_profit * self.fee_rate * 2)
             net_profit = gross_profit - fees
 
             if net_profit >= self.min_profit_cents:
-                opp_id = f"arb_{market_1.market_id}_{market_2.market_id}_{int(datetime.utcnow().timestamp())}"
+                opp_id = f"arb_{market_1.market_id}_{market_2.market_id}_{int(datetime.now(timezone.utc).timestamp())}"
                 # Create opportunity object first for enhanced confidence calculation
                 temp_opp = ArbitrageOpportunity(
                     id=opp_id,
@@ -174,17 +184,24 @@ class ArbitrageDetector:
                 opportunities.append(temp_opp)
 
         if m2_sell_price and m1_buy_price and m2_sell_price > m1_buy_price:
+            from src.core.position_sizing import KellyCriterion
+            _portfolio_stats = self.portfolio_manager.get_stats().__dict__ if self.portfolio_manager else {}
+            _kelly = KellyCriterion()
+            _profit_pct = ((m2_sell_price - m1_buy_price) / m1_buy_price) * 100
+            _kelly_qty = _kelly.calculate_size(
+                {"confidence": 0.7, "profit_percent": _profit_pct}, _portfolio_stats
+            )
             quantity = min(
                 best_bid_2.count if best_bid_2 else 0,
                 best_ask_1.count if best_ask_1 else 0,
-                100,
+                _kelly_qty,
             )
             gross_profit = (m2_sell_price - m1_buy_price) * quantity
             fees = int(gross_profit * self.fee_rate * 2)
             net_profit = gross_profit - fees
 
             if net_profit >= self.min_profit_cents:
-                opp_id = f"arb_{market_2.market_id}_{market_1.market_id}_{int(datetime.utcnow().timestamp())}"
+                opp_id = f"arb_{market_2.market_id}_{market_1.market_id}_{int(datetime.now(timezone.utc).timestamp())}"
                 # Create opportunity object first for enhanced confidence calculation
                 temp_opp = ArbitrageOpportunity(
                     id=opp_id,
@@ -230,7 +247,7 @@ class ArbitrageDetector:
 
             if net_profit >= self.min_profit_cents:
                 opp = ArbitrageOpportunity(
-                    id=f"int_{market_id}_{int(datetime.utcnow().timestamp())}",
+                    id=f"int_{market_id}_{int(datetime.now(timezone.utc).timestamp())}",
                     type=ArbitrageType.INTERNAL,
                     market_id_1=market_id,
                     buy_market_id=market_id,
@@ -347,13 +364,17 @@ class ArbitrageDetector:
             else:
                 current_spread = market_1.get_spread_percent() if market_1 else 0
 
-            # Get timing signal
-            timing_signal = await get_arbitrage_timing_signal(
-                opportunity.market_id_1,
-                current_spread,
-                recent_prices_1,
-                prediction_horizon_minutes=5,
-            )
+            # Get timing signal, reusing cached forecaster
+            try:
+                timing_signal = await get_arbitrage_timing_signal(
+                    opportunity.market_id_1,
+                    current_spread,
+                    recent_prices_1,
+                    prediction_horizon_minutes=5,
+                    forecaster=self.forecaster,
+                )
+            except ImportError:
+                return 0
 
             # Boost confidence if timing signal aligns with opportunity
             if timing_signal["signal"] in ["enter_buy", "enter_sell"]:
@@ -375,18 +396,21 @@ class ArbitrageDetector:
             if cache_key in self._sentiment_cache:
                 cached_data = self._sentiment_cache[cache_key]
                 if (
-                    datetime.utcnow() - datetime.fromisoformat(cached_data["timestamp"])
+                    datetime.now(timezone.utc) - datetime.fromisoformat(cached_data["timestamp"])
                 ).total_seconds() < self.cache_ttl:
                     sentiment_score = cached_data.get("sentiment_score", 0)
                     return (
                         abs(sentiment_score) * 0.3
                     )  # Max 30% boost based on sentiment strength
 
-            # Get fresh sentiment data
+            # Get fresh sentiment data, reusing cached aggregator
             event_keywords = self._extract_event_keywords(market_id)
-            sentiment_signal = await get_market_sentiment_signal(
-                market_id, event_keywords
-            )
+            try:
+                sentiment_signal = await get_market_sentiment_signal(
+                    market_id, event_keywords, aggregator=self.sentiment_aggregator
+                )
+            except ImportError:
+                return 0
 
             # Cache the result
             self._sentiment_cache[cache_key] = sentiment_signal
@@ -536,10 +560,21 @@ class ArbitrageDetector:
                 )
                 opportunities.append(trad_opp)
 
-        # Sort by profit and confidence
-        opportunities.sort(
-            key=lambda x: x.net_profit_cents * x.confidence, reverse=True
-        )
+        # Score and rank using OpportunityScorer when available
+        try:
+            from src.core.opportunity_scoring import OpportunityScorer
+            scorer = OpportunityScorer()
+            scored = await scorer.score_batch(opportunities)
+            opp_map = {opp.id: opp for opp in opportunities}
+            ranked = [opp_map[s.opportunity_id] for s in scored if s.opportunity_id in opp_map]
+            # Append any unscored opportunities at the end
+            scored_ids = {s.opportunity_id for s in scored}
+            ranked += [opp for opp in opportunities if opp.id not in scored_ids]
+            opportunities = ranked
+        except Exception:
+            opportunities.sort(
+                key=lambda x: x.net_profit_cents * x.confidence, reverse=True
+            )
 
         return opportunities[:20]
 
@@ -574,7 +609,7 @@ class ArbitrageDetector:
 
     def cleanup_caches(self) -> None:
         """Clean up expired cache entries"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Clean sentiment cache
         expired_keys = [

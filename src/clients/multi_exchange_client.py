@@ -3,6 +3,7 @@ Multi-Exchange Client - Unified interface for multiple prediction markets.
 """
 
 import asyncio
+import aiohttp
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
@@ -94,7 +95,7 @@ class PolymarketClient(ExchangeClient):
         if not self.enabled:
             return False
         logger.info("Connecting to Polymarket...")
-        self._session = asyncio.Session()
+        self._session = aiohttp.ClientSession()
         return True
 
     async def disconnect(self) -> None:

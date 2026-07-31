@@ -1,7 +1,7 @@
 """Backtesting module for testing trading strategies on historical data."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 
@@ -86,7 +86,7 @@ class Backtester:
         Returns:
             BacktestResult with statistics and trades
         """
-        start_time = datetime.utcnow().isoformat()
+        start_time = datetime.now(timezone.utc).isoformat()
         self.balance_cents = self.config.initial_balance_cents
         self.positions = {}
         self.trades = []
@@ -97,7 +97,7 @@ class Backtester:
             self._process_snapshot(snapshot)
 
         stats = self._calculate_stats()
-        end_time = datetime.utcnow().isoformat()
+        end_time = datetime.now(timezone.utc).isoformat()
         duration = (datetime.fromisoformat(end_time) - datetime.fromisoformat(start_time)).total_seconds()
 
         return BacktestResult(
@@ -144,7 +144,7 @@ class Backtester:
 
                 if total <= self.balance_cents and count > 0:
                     trade = BacktestTrade(
-                        timestamp=datetime.utcnow().isoformat(),
+                        timestamp=datetime.now(timezone.utc).isoformat(),
                         market_id=market_id,
                         side='buy',
                         price=price,

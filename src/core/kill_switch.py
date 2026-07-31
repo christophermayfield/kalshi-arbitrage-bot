@@ -15,7 +15,7 @@ import signal
 import sys
 from enum import Enum
 from typing import Optional, Callable, List
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ class KillSwitch:
             self._kill_level = level
             self._kill_reason = reason
             self._kill_message = message
-            self._kill_time = datetime.utcnow()
+            self._kill_time = datetime.now(timezone.utc)
 
             logger.critical("=" * 70)
             logger.critical("🚨 KILL SWITCH ACTIVATED 🚨")

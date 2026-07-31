@@ -7,7 +7,7 @@ for small account trading with progressive scaling capabilities.
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import logging
 
@@ -62,7 +62,7 @@ class DailyStats:
     gross_profit_cents: int = 0
     total_fees_cents: int = 0
     last_trade_time: Optional[datetime] = None
-    last_reset_date: datetime = field(default_factory=lambda: datetime.utcnow().date())
+    last_reset_date: datetime = field(default_factory=lambda: datetime.now(timezone.utc).date())
 
     @property
     def win_rate(self) -> float:
@@ -164,7 +164,7 @@ class LimitedRiskManager:
 
         if self.config.cooldown_seconds > 0 and self.daily_stats.last_trade_time:
             elapsed = (
-                datetime.utcnow() - self.daily_stats.last_trade_time
+                datetime.now(timezone.utc) - self.daily_stats.last_trade_time
             ).total_seconds()
             if elapsed < self.config.cooldown_seconds:
                 remaining = int(self.config.cooldown_seconds - elapsed)
@@ -223,7 +223,7 @@ class LimitedRiskManager:
         self.daily_stats.daily_pnl_cents += pnl_cents
         self.daily_stats.total_fees_cents += fee_cents
         self.daily_stats.gross_profit_cents += gross_profit_cents
-        self.daily_stats.last_trade_time = datetime.utcnow()
+        self.daily_stats.last_trade_time = datetime.now(timezone.utc)
 
         if pnl_cents > 0:
             self.daily_stats.trades_won += 1
@@ -265,7 +265,7 @@ class LimitedRiskManager:
 
     def reset_daily_stats(self, force: bool = False) -> None:
         """Reset daily statistics (call at market open)."""
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
 
         if today != self.daily_stats.last_reset_date or force:
             logger.info(

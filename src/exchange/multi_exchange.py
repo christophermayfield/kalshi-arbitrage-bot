@@ -884,7 +884,7 @@ class CrossExchangeArbitrageDetector:
                 score += opp.confidence * 0.3
                 
                 # Volume/liquidity factor (20%)
-                volume_score = min(1.0, (opp.volume_1 + opp.volume_2) / 10000.0))
+                volume_score = min(1.0, (opp.volume_1 + opp.volume_2) / 10000.0)
                 score += volume_score * 0.2
                 
                 # Risk factor (10%)
@@ -1146,6 +1146,36 @@ class MultiExchangeArbitrageEngine:
 
 
 # Utility functions
+def cross_exchange_to_arbitrage_opportunity(
+    opp: CrossExchangeOpportunity,
+) -> ArbitrageOpportunity:
+    """Convert a CrossExchangeOpportunity to a standard ArbitrageOpportunity."""
+    buy_price = int(opp.price_1 * 100)
+    sell_price = int(opp.price_2 * 100)
+    quantity = opp.recommended_quantity or 1
+    gross_profit = int(opp.spread * 100) * quantity
+    fees = int(gross_profit * 0.02)
+    net_profit = gross_profit - fees
+
+    return ArbitrageOpportunity(
+        id=opp.opportunity_id,
+        type=ArbitrageType.CROSS_MARKET,
+        market_id_1=opp.market_1,
+        market_id_2=opp.market_2,
+        buy_market_id=opp.market_1,
+        sell_market_id=opp.market_2,
+        buy_price=buy_price,
+        sell_price=sell_price,
+        quantity=quantity,
+        profit_cents=gross_profit,
+        profit_percent=opp.spread_percent,
+        fees=fees,
+        net_profit_cents=net_profit,
+        confidence=opp.confidence,
+        execution_window_seconds=opp.execution_window_seconds,
+    )
+
+
 def create_multi_exchange_engine(config: Config) -> MultiExchangeArbitrageEngine:
     """Create and return multi-exchange arbitrage engine"""
     return MultiExchangeArbitrageEngine(config)

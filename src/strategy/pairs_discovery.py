@@ -6,7 +6,7 @@ import asyncio
 import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
 from src.utils.logging_utils import get_logger
@@ -70,12 +70,12 @@ class PairsDiscovery:
                         market_id_2=m2,
                         correlation=correlation,
                         hedge_ratio=hedge_ratio,
-                        last_updated=datetime.utcnow(),
+                        last_updated=datetime.now(timezone.utc),
                     )
                     discovered_pairs.append(pair)
                     self._pairs[(m1, m2)] = pair
 
-        self._last_update = datetime.utcnow()
+        self._last_update = datetime.now(timezone.utc)
         logger.info(f"Discovered {len(discovered_pairs)} correlated pairs")
 
         return discovered_pairs

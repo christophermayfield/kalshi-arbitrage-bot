@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 from src.utils.logging_utils import get_logger
@@ -67,7 +67,7 @@ class StatisticalArbitrageOpportunity:
     holding_period_hours: int = 24
 
     # Metadata
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     market_data_points: int = 0
     statistical_p_value: float = 0.0
 
@@ -151,7 +151,7 @@ class StatisticalArbitrageBase:
         self, market_id: str, price: float, volume: int = 0
     ) -> None:
         """Update price history for a market."""
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         if market_id not in self.price_history:
             self.price_history[market_id] = []
@@ -201,7 +201,7 @@ class StatisticalArbitrageBase:
         returns_1 = self.calculate_returns(market_id_1)
         returns_2 = self.calculate_returns(market_id_2)
 
-        if len(returns_1) != len(returns_2) or len(returns_1) < 10:
+        if len(returns_1) != len(returns_2) or len(returns_1) < 8:
             return 0.0
 
         correlation = np.corrcoef(returns_1, returns_2)[0, 1]
@@ -216,7 +216,7 @@ class StatisticalArbitrageBase:
         returns_1 = self.calculate_returns(market_id_1)
         returns_2 = self.calculate_returns(market_id_2)
 
-        if len(returns_1) != len(returns_2) or len(returns_1) < 20:
+        if len(returns_1) != len(returns_2) or len(returns_1) < 4:
             return 1.0
 
         # Use linear regression to find hedge ratio
@@ -365,7 +365,7 @@ class MeanReversionStrategy(StatisticalArbitrageBase):
         )
 
         return StatisticalArbitrageOpportunity(
-            id=f"mr_{market_id}_{int(datetime.utcnow().timestamp())}",
+            id=f"mr_{market_id}_{int(datetime.now(timezone.utc).timestamp())}",
             type=StatisticalArbitrageType.MEAN_REVERSION,
             market_id_1=market_id,
             strategy_signal=signal,
@@ -513,7 +513,7 @@ class PairsTradingStrategy(StatisticalArbitrageBase):
         )
 
         return StatisticalArbitrageOpportunity(
-            id=f"pair_{market_id_1}_{market_id_2}_{int(datetime.utcnow().timestamp())}",
+            id=f"pair_{market_id_1}_{market_id_2}_{int(datetime.now(timezone.utc).timestamp())}",
             type=StatisticalArbitrageType.PAIRS_TRADING,
             market_id_1=market_id_1,
             market_id_2=market_id_2,

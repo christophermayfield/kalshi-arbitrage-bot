@@ -4,7 +4,7 @@ import sys
 import os
 import uuid
 from typing import Dict, Set, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
 from src.utils.config import Config
@@ -107,6 +107,10 @@ class ArbitrageBot:
         self.client = KalshiClient(config)
         self.ws_client: Optional[KalshiWebSocketClient] = None
         self.db: Optional[Database] = None
+        self.portfolio = PortfolioManager(
+            max_daily_loss=config.get("risk.max_daily_loss_cents", 10000),
+            max_open_positions=config.get("risk.max_open_positions", 50),
+        )
         self.detector = ArbitrageDetector(
             min_profit_cents=config.min_profit_cents,
             fee_rate=0.01,
@@ -117,10 +121,7 @@ class ArbitrageBot:
             sentiment_weight=config.get("sentiment.weight", 0.2),
             enable_statistical_arbitrage=config.get("statistical.enabled", False),
             statistical_config=config.get("statistical", {}),
-        )
-        self.portfolio = PortfolioManager(
-            max_daily_loss=config.get("risk.max_daily_loss_cents", 10000),
-            max_open_positions=config.get("risk.max_open_positions", 50),
+            portfolio_manager=self.portfolio,
         )
         self.executor = TradingExecutor(
             client=self.client,
@@ -169,6 +170,16 @@ class ArbitrageBot:
             "monitoring.scan_interval_seconds", 5.0
         )
         self._market_refresh_task: Optional[asyncio.Task] = None
+
+        # Multi-exchange engine (optional)
+        self.multi_exchange_engine = None
+        if config.get("multi_exchange.enabled", False):
+            try:
+                from src.exchange.multi_exchange import create_multi_exchange_engine
+                self.multi_exchange_engine = create_multi_exchange_engine(config)
+                logger.info("Multi-exchange arbitrage engine initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize multi-exchange engine: {e}")
 
     def _init_limited_risk_mode(self) -> None:
         """Initialize limited risk trading mode if enabled in config."""
@@ -288,6 +299,13 @@ class ArbitrageBot:
         await self._start_market_data_loop()
         await self._start_market_refresh_loop()
 
+        if self.multi_exchange_engine:
+            try:
+                await self.multi_exchange_engine.start()
+                logger.info("Multi-exchange engine started")
+            except Exception as e:
+                logger.warning(f"Multi-exchange engine failed to start: {e}")
+
     def _initialize_circuit_breakers(self) -> None:
         cb_config = CircuitBreakerConfig(
             failure_threshold=self.config.get("risk.circuit_breaker_threshold", 5),
@@ -393,7 +411,7 @@ class ArbitrageBot:
             for price, size in asks:
                 orderbook.update_ask(price, size)
 
-            orderbook.last_update = datetime.utcnow()
+            orderbook.last_update = datetime.now(timezone.utc)
 
         except Exception as e:
             logger.debug(f"Error handling orderbook update: {e}")
@@ -414,7 +432,7 @@ class ArbitrageBot:
             for price, size in asks:
                 orderbook.update_ask(price, size)
 
-            orderbook.last_update = datetime.utcnow()
+            orderbook.last_update = datetime.now(timezone.utc)
             self.orderbooks[market_id] = orderbook
 
             if market_id not in self.subscribed_markets:
@@ -428,7 +446,7 @@ class ArbitrageBot:
             data = message.data
             market_id = data.get("market_id")
             if market_id and market_id in self.orderbooks:
-                self.orderbooks[market_id].last_update = datetime.utcnow()
+                self.orderbooks[market_id].last_update = datetime.now(timezone.utc)
         except Exception as e:
             logger.debug(f"Error handling trade: {e}")
 
@@ -604,12 +622,17 @@ class ArbitrageBot:
 
     async def _initialize_database(self) -> None:
         try:
-            db_path = self.config.get("database.path", "data/arbitrage.db")
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            db_url = f"sqlite:///{db_path}"
+            db_url = (
+                os.environ.get("DATABASE_URL")
+                or self.config.get("database.url")
+                or f"sqlite:///{self.config.get('database.path', 'data/arbitrage.db')}"
+            )
+            if db_url.startswith("sqlite:///"):
+                db_path = db_url[len("sqlite:///"):]
+                os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
             self.db = Database(database_url=db_url)
             self.db.create_tables()
-            logger.info(f"Database initialized at {db_path}")
+            logger.info(f"Database initialized: {db_url}")
         except Exception as e:
             logger.warning(f"Failed to initialize database: {e}")
 
@@ -883,6 +906,12 @@ class ArbitrageBot:
             except Exception as e:
                 correlated_logger.warning(f"Failed to cancel order {order_id}: {e}")
 
+        if self.multi_exchange_engine:
+            try:
+                await self.multi_exchange_engine.stop()
+            except Exception as e:
+                logger.warning(f"Error stopping multi-exchange engine: {e}")
+
         if self.db:
             correlated_logger.info("Closing database connections...")
 
@@ -893,7 +922,7 @@ class ArbitrageBot:
         status = {
             "status": "healthy",
             "running": self.running,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "correlation_id": self.correlation_id,
             "components": {},
         }

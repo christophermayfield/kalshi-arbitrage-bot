@@ -5,7 +5,7 @@ Audit Log / Event Store - Immutable audit trail for all trading activities.
 import json
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -67,7 +67,7 @@ class AuditLog:
 
     def _generate_event_id(self) -> str:
         self._event_counter += 1
-        return f"evt_{self._event_counter}_{int(datetime.utcnow().timestamp())}"
+        return f"evt_{self._event_counter}_{int(datetime.now(timezone.utc).timestamp())}"
 
     def log_event(
         self,
@@ -83,7 +83,7 @@ class AuditLog:
         event = AuditEvent(
             event_id=self._generate_event_id(),
             event_type=event_type.value,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             severity=severity.value,
             correlation_id=correlation_id,
             market_id=market_id,
@@ -161,7 +161,7 @@ class AuditLog:
 
     def get_recent_events(self, hours: int = 24, limit: int = 100) -> List[AuditEvent]:
         """Get recent events."""
-        start_time = datetime.utcnow() - timedelta(hours=hours)
+        start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         return self.query_events(start_time=start_time, limit=limit)
 
     def get_events_summary(self, hours: int = 24) -> Dict[str, Any]:
@@ -219,4 +219,4 @@ class AuditLog:
         return events
 
 
-from datetime import timedelta
+from datetime import timedelta, timezone

@@ -32,7 +32,7 @@ def run_migrations_offline() -> None:
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-   sqlite" in get if "_url():
+    if "sqlite" in get_url():
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()

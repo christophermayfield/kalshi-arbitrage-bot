@@ -1,6 +1,6 @@
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from logging.handlers import SysLogHandler
 import threading
@@ -53,7 +53,7 @@ class LogAggregator:
         class JsonFormatter(logging.Formatter):
             def format(self, record: logging.LogRecord) -> str:
                 log_data = {
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'level': record.levelname,
                     'logger': record.name,
                     'message': record.getMessage(),
@@ -121,7 +121,7 @@ class ElasticsearchLogger:
             return
 
         try:
-            document['@timestamp'] = datetime.utcnow().isoformat()
+            document['@timestamp'] = datetime.now(timezone.utc).isoformat()
             self._client.index(index=self.index, document=document)
         except Exception as e:
             logger.warning(f"Failed to send log to Elasticsearch: {e}")
@@ -160,7 +160,7 @@ class LokiLogger:
         self._batch: list = []
         self._batch_size = 100
         self._flush_interval = 5
-        self._last_flush = datetime.utcnow()
+        self._last_flush = datetime.now(timezone.utc)
         self._lock = threading.Lock()
 
     async def _send_batch(self) -> None:
@@ -176,7 +176,7 @@ class LokiLogger:
                     'stream': self.labels,
                     'values': [
                         [
-                            str(int(datetime.utcnow().timestamp() * 1e9)),
+                            str(int(datetime.now(timezone.utc).timestamp() * 1e9)),
                             json.dumps(entry)
                         ]
                         for entry in batch
@@ -210,9 +210,9 @@ class LokiLogger:
 
             if len(self._batch) >= self._batch_size:
                 await self._send_batch()
-            elif (datetime.utcnow() - self._last_flush).total_seconds() > self._flush_interval:
+            elif (datetime.now(timezone.utc) - self._last_flush).total_seconds() > self._flush_interval:
                 await self._send_batch()
-                self._last_flush = datetime.utcnow()
+                self._last_flush = datetime.now(timezone.utc)
 
     async def flush(self) -> None:
         await self._send_batch()

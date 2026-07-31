@@ -4,7 +4,7 @@ import asyncio
 import logging
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, Any
 
 from src.utils.config import Config
@@ -112,7 +112,7 @@ class EnhancedArbitrageBot:
         """Start the enhanced arbitrage bot."""
         logger.info("Starting enhanced arbitrage bot...")
         self.running = True
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now(timezone.utc)
 
         # Initialize correlation strategy
         if self.correlation_strategy:
@@ -341,7 +341,7 @@ class EnhancedArbitrageBot:
             try:
                 # Calculate uptime
                 if self.start_time:
-                    uptime = datetime.utcnow() - self.start_time
+                    uptime = datetime.now(timezone.utc) - self.start_time
                     uptime_seconds = uptime.total_seconds()
                     uptime_minutes = uptime_seconds / 60
                     uptime_hours = uptime_minutes / 60
@@ -567,7 +567,7 @@ class EnhancedArbitrageBot:
         status = {
             "running": self.running,
             "start_time": self.start_time.isoformat() if self.start_time else None,
-            "uptime_seconds": (datetime.utcnow() - self.start_time).total_seconds()
+            "uptime_seconds": (datetime.now(timezone.utc) - self.start_time).total_seconds()
             if self.start_time
             else 0,
             "total_opportunities": self.total_opportunities,

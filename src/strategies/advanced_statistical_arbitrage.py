@@ -1012,7 +1012,7 @@ def calculate_pairs_hedge_ratio(prices1: pd.Series, prices2: pd.Series) -> float
         X = sm.add_constant(prices2)
         model = sm.OLS(prices1, X).fit()
         return model.params[1]  # Slope coefficient
-    except:
+    except (ValueError, IndexError, ZeroDivisionError):
         return 1.0
 
 
@@ -1039,5 +1039,5 @@ def calculate_half_life(series: pd.Series) -> float:
         half_life = -np.log(2) / np.log(1 + coefficient)
         return half_life
 
-    except:
+    except (ValueError, ZeroDivisionError, RuntimeError):
         return 30.0  # Default 30 days

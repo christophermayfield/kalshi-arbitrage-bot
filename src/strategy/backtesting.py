@@ -5,7 +5,7 @@ Backtesting Framework - Test strategies on historical data.
 import asyncio
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import numpy as np
 import pandas as pd
@@ -110,7 +110,7 @@ class BacktestEngine:
             "side": side,
             "profit": profit,
             "equity_after": self.equity,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.trade_log.append(trade)
 

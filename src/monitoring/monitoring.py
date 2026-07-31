@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
@@ -77,10 +77,10 @@ class MetricsCollector:
 
 class HealthChecker:
     def __init__(self):
-        self.last_heartbeat = datetime.utcnow()
+        self.last_heartbeat = datetime.now(timezone.utc)
         self.last_error: Optional[str] = None
         self.error_count = 0
-        self.startup_time = datetime.utcnow()
+        self.startup_time = datetime.now(timezone.utc)
 
     def is_healthy(self) -> bool:
         return self.error_count < 5
@@ -90,12 +90,12 @@ class HealthChecker:
         self.error_count += 1
 
     def record_success(self) -> None:
-        self.last_heartbeat = datetime.utcnow()
+        self.last_heartbeat = datetime.now(timezone.utc)
 
     def get_status(self) -> Dict[str, Any]:
         return {
             'healthy': self.is_healthy(),
-            'uptime_seconds': (datetime.utcnow() - self.startup_time).total_seconds(),
+            'uptime_seconds': (datetime.now(timezone.utc) - self.startup_time).total_seconds(),
             'last_heartbeat': self.last_heartbeat.isoformat(),
             'last_error': self.last_error,
             'error_count': self.error_count
@@ -121,7 +121,7 @@ class NotificationManager:
             'title': title,
             'message': message,
             'level': level,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
 
         logger.info(f"[NOTIFICATION] {title}: {message}")

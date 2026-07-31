@@ -1,7 +1,7 @@
 """Automated strategy generation and optimization system."""
 
 from typing import Dict, List, Optional, Any, Tuple, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, asdict
 from enum import Enum
 import json
@@ -274,7 +274,7 @@ class StatisticalArbitrageGenerator(StrategyGenerator):
             performance_metrics={},
             backtest_results={},
             generation_score=0.0,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             template_id=template.template_id,
         )
 

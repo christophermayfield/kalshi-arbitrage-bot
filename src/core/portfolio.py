@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from src.utils.logging_utils import get_logger
@@ -47,7 +47,7 @@ class Trade:
     side: PositionSide
     quantity: int
     price: int
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     pnl: int = 0
 
 
@@ -66,38 +66,14 @@ class PortfolioStats:
 
 
 class PortfolioManager:
-    def can_open_position(self, quantity: int, price: int) -> bool:
-        """Check if we can open a position given current balance and limits"""
-        # Calculate position cost
-        position_cost = quantity * price
-        
-        # Check against available balance
-        if position_cost > self.cash_balance:
-            logger.warning(f"Insufficient balance: need ${position_cost}, have ${self.cash_balance}")
-            return False
-        
-        # Check max position size
-        if quantity > self.max_position_contracts:
-            logger.warning(f"Position size exceeds maximum: {quantity} > {self.max_position_contracts}")
-            return False
-        
-        # Check portfolio heat
-        current_positions_value = sum(pos['quantity'] * pos['avg_price'] for pos in self.positions.values())
-        portfolio_value = current_positions_value + position_cost + self.cash_balance
-        
-        if portfolio_value > self.max_portfolio_value:
-            logger.warning(f"Position exceeds portfolio limit: portfolio value ${portfolio_value} > ${self.max_portfolio_value}")
-            return False
-        
-        return True
-
-
-
     def __init__(
         self,
         max_daily_loss: int = 10000,
         max_open_positions: int = 50,
-        circuit_breaker_threshold: int = 5
+        circuit_breaker_threshold: int = 5,
+        max_position_contracts: int = 1000,
+        max_portfolio_value: int = 100000,
+        initial_balance: int = 0,
     ):
         self.positions: Dict[str, Position] = {}
         self.trades: List[Trade] = []
@@ -105,9 +81,12 @@ class PortfolioManager:
         self.max_daily_loss = max_daily_loss
         self.max_open_positions = max_open_positions
         self.circuit_breaker_threshold = circuit_breaker_threshold
+        self.max_position_contracts = max_position_contracts
+        self.max_portfolio_value = max_portfolio_value
+        self.cash_balance = initial_balance
         self.circuit_breaker_count = 0
         self.daily_loss_count = 0
-        self.last_reset_date = datetime.utcnow().date()
+        self.last_reset_date = datetime.now(timezone.utc).date()
 
     def get_balance(self) -> int:
         return self.cash_balance
@@ -117,17 +96,21 @@ class PortfolioManager:
 
     def update_positions(self, positions_data: List[Dict]) -> None:
         for pos_data in positions_data:
-            market_id = pos_data.get('market_id', '')
-            side = PositionSide.YES if pos_data.get('side') == 'yes' else PositionSide.NO
-            quantity = int(pos_data.get('count', 0))
-            avg_cost = int(pos_data.get('avg_price', 0))
+            market_id = pos_data.get("market_id", "")
+            side = (
+                PositionSide.YES if pos_data.get("side") == "yes" else PositionSide.NO
+            )
+            quantity = int(pos_data.get("count", 0))
+            avg_cost = int(pos_data.get("avg_price", 0))
 
             if market_id in self.positions:
                 existing = self.positions[market_id]
                 if existing.side == side:
                     total_quantity = existing.quantity + quantity
                     if total_quantity > 0:
-                        new_avg = (existing.avg_cost * existing.quantity + avg_cost * quantity) / total_quantity
+                        new_avg = (
+                            existing.avg_cost * existing.quantity + avg_cost * quantity
+                        ) / total_quantity
                         existing.quantity = total_quantity
                         existing.avg_cost = int(new_avg)
                     else:
@@ -141,14 +124,11 @@ class PortfolioManager:
                             market_id=market_id,
                             side=side,
                             quantity=new_quantity,
-                            avg_cost=avg_cost
+                            avg_cost=avg_cost,
                         )
             elif quantity > 0:
                 self.positions[market_id] = Position(
-                    market_id=market_id,
-                    side=side,
-                    quantity=quantity,
-                    avg_cost=avg_cost
+                    market_id=market_id, side=side, quantity=quantity, avg_cost=avg_cost
                 )
 
     def record_trade(
@@ -157,22 +137,22 @@ class PortfolioManager:
         side: PositionSide,
         quantity: int,
         price: int,
-        pnl: int = 0
+        pnl: int = 0,
     ) -> Trade:
         trade = Trade(
-            id=f"trade_{datetime.utcnow().timestamp()}",
+            id=f"trade_{datetime.now(timezone.utc).timestamp()}",
             market_id=market_id,
             side=side,
             quantity=quantity,
             price=price,
-            pnl=pnl
+            pnl=pnl,
         )
         self.trades.append(trade)
 
         if pnl > 0:
-            self.daily_stats['wins'] = self.daily_stats.get('wins', 0) + 1
+            self.daily_stats["wins"] = self.daily_stats.get("wins", 0) + 1
         else:
-            self.daily_stats['losses'] = self.daily_stats.get('losses', 0) + 1
+            self.daily_stats["losses"] = self.daily_stats.get("losses", 0) + 1
 
         return trade
 
@@ -181,28 +161,36 @@ class PortfolioManager:
         total_pnl = sum(p.total_pnl for p in self.positions.values())
 
         completed_trades = len([t for t in self.trades if t.pnl != 0])
-        wins = self.daily_stats.get('wins', 0)
-        losses = self.daily_stats.get('losses', 0)
+        wins = self.daily_stats.get("wins", 0)
+        losses = self.daily_stats.get("losses", 0)
         total_trades = wins + losses
 
         win_rate = (wins / total_trades * 100) if total_trades > 0 else 0.0
 
         winning_trades = [t for t in self.trades if t.pnl > 0]
         losing_trades = [t for t in self.trades if t.pnl < 0]
-        avg_win = sum(t.pnl for t in winning_trades) / len(winning_trades) if winning_trades else 0
-        avg_loss = sum(t.pnl for t in losing_trades) / len(losing_trades) if losing_trades else 0
+        avg_win = (
+            sum(t.pnl for t in winning_trades) / len(winning_trades)
+            if winning_trades
+            else 0
+        )
+        avg_loss = (
+            sum(t.pnl for t in losing_trades) / len(losing_trades)
+            if losing_trades
+            else 0
+        )
 
         return PortfolioStats(
             total_value=self.cash_balance + positions_value,
             cash_balance=self.cash_balance,
             positions_value=positions_value,
             total_pnl=total_pnl,
-            daily_pnl=self.daily_stats.get('daily_pnl', 0),
+            daily_pnl=self.daily_stats.get("daily_pnl", 0),
             open_positions=len(self.positions),
             completed_trades=completed_trades,
             win_rate=win_rate,
             avg_win=int(avg_win),
-            avg_loss=int(avg_loss)
+            avg_loss=int(avg_loss),
         )
 
     def check_risk_limits(self) -> Tuple[bool, str]:
@@ -214,7 +202,7 @@ class PortfolioManager:
         if len(self.positions) >= self.max_open_positions:
             return False, "Max open positions reached"
 
-        daily_pnl = self.daily_stats.get('daily_pnl', 0)
+        daily_pnl = self.daily_stats.get("daily_pnl", 0)
         if daily_pnl < -self.max_daily_loss:
             self.daily_loss_count += 1
             if self.daily_loss_count >= self.circuit_breaker_threshold:
@@ -229,21 +217,76 @@ class PortfolioManager:
                 self.positions[market_id].update_price(price)
 
     def reset_daily_stats(self) -> None:
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         if today != self.last_reset_date:
             self.daily_stats = {}
             self.last_reset_date = today
             self.daily_loss_count = 0
 
-    def can_open_position(self, quantity: int, price: int) -> Tuple[bool, str]:
-        cost = quantity * price
-        if cost > self.cash_balance:
-            return False, "Insufficient balance"
+    def can_open_position(
+        self, quantity: int, price: Optional[int] = None
+    ) -> Tuple[bool, str]:
+        """Check if we can open a position given current balance and limits"""
+        # Check max position size first (doesn't require price)
+        if quantity > self.max_position_contracts:
+            logger.warning(
+                f"Position size exceeds maximum: {quantity} > {self.max_position_contracts}"
+            )
+            return False, "Position size exceeds maximum"
 
+        # Check max open positions
         if len(self.positions) >= self.max_open_positions:
             return False, "Max positions reached"
 
+        # If price is not provided, skip balance checks (backward compatibility)
+        if price is not None:
+            cost = quantity * price
+
+            # Check balance
+            if cost > self.cash_balance:
+                logger.warning(
+                    f"Insufficient balance: need ${cost}, have ${self.cash_balance}"
+                )
+                return False, "Insufficient balance"
+
+            # Check portfolio value limit
+            current_positions_value = sum(
+                pos.market_value for pos in self.positions.values()
+            )
+            portfolio_value = current_positions_value + cost + self.cash_balance
+
+            if portfolio_value > self.max_portfolio_value:
+                logger.warning(
+                    f"Position exceeds portfolio limit: portfolio value ${portfolio_value} > ${self.max_portfolio_value}"
+                )
+                return False, "Portfolio value limit exceeded"
+
         return True, "OK"
+
+    def add_daily_loss(self, loss: int) -> None:
+        """Record a daily loss for circuit breaker tracking"""
+        current_daily_pnl = self.daily_stats.get("daily_pnl", 0)
+        self.daily_stats["daily_pnl"] = current_daily_pnl - loss
+        self.daily_loss_count += 1
+        logger.warning(
+            f"Daily loss recorded: ${loss}. Total daily P&L: ${self.daily_stats['daily_pnl']}"
+        )
+
+    def check_daily_loss_limit(self) -> bool:
+        """Check if we can continue trading based on daily loss limits"""
+        daily_pnl = self.daily_stats.get("daily_pnl", 0)
+
+        # Check if daily loss limit exceeded
+        if daily_pnl < -self.max_daily_loss:
+            if self.daily_loss_count >= self.circuit_breaker_threshold:
+                logger.error(
+                    f"Circuit breaker triggered! Daily P&L: ${daily_pnl}, Loss count: {self.daily_loss_count}"
+                )
+                return False
+            logger.warning(f"Daily loss limit exceeded: ${daily_pnl}")
+            return False
+
+        return True
 
     def close_position(self, market_id: str, price: int) -> Optional[Trade]:
         if market_id not in self.positions:
@@ -257,7 +300,7 @@ class PortfolioManager:
             side=position.side,
             quantity=position.quantity,
             price=price,
-            pnl=pnl
+            pnl=pnl,
         )
 
         self.cash_balance += position.market_value

@@ -5,7 +5,7 @@ import json
 import logging
 import pickle
 from typing import Any, Dict, List, Optional, Union, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import redis.asyncio as redis
 from dataclasses import asdict
 
@@ -365,7 +365,7 @@ class PerformanceCache:
             await self.delete_keys("metrics:*")
 
             # Clean up very old orderbooks
-            cutoff_time = datetime.utcnow() - timedelta(hours=1)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=1)
             cutoff_timestamp = int(cutoff_time.timestamp())
 
             # Note: This would require additional Redis modules for efficient cleanup

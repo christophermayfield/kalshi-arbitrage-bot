@@ -14,14 +14,15 @@ from .multi_exchange import (
     ExchangeManager,
     CrossExchangeArbitrageDetector,
     MultiExchangeArbitrageEngine,
-    create_multi_exchange_engine
-    execute_cross_exchange_arbitrage
+    create_multi_exchange_engine,
+    cross_exchange_to_arbitrage_opportunity,
+    execute_cross_exchange_arbitrage,
 )
 
 __all__ = [
     'ExchangeType',
     'ExchangeConfig',
-    'MarketMapping', 
+    'MarketMapping',
     'CrossExchangeOpportunity',
     'ExchangeClient',
     'KalshiExchangeClient',
@@ -30,5 +31,6 @@ __all__ = [
     'CrossExchangeArbitrageDetector',
     'MultiExchangeArbitrageEngine',
     'create_multi_exchange_engine',
-    'execute_cross_exchange_arbitrage'
+    'cross_exchange_to_arbitrage_opportunity',
+    'execute_cross_exchange_arbitrage',
 ]

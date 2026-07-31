@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketDisconnect
@@ -30,7 +30,7 @@ class WebSocketManager:
                 "type": "bot_status",
                 "status": {
                     "running": True,
-                    "connected_at": datetime.utcnow().isoformat(),
+                    "connected_at": datetime.now(timezone.utc).isoformat(),
                 },
             },
         )
@@ -54,7 +54,7 @@ class WebSocketManager:
         # Add to subscribers
         self.subscribers[client_id] = {
             "websocket": websocket,
-            "connected_at": datetime.utcnow().isoformat(),
+            "connected_at": datetime.now(timezone.utc).isoformat(),
         }
 
         logger.info(f"Total active connections: {len(self.active_connections)}")
@@ -76,7 +76,7 @@ class WebSocketManager:
         if not self.active_connections:
             return
 
-        message_with_timestamp = {**message, "timestamp": datetime.utcnow().isoformat()}
+        message_with_timestamp = {**message, "timestamp": datetime.now(timezone.utc).isoformat()}
 
         # Send to all active connections
         for client_id, websocket in list(self.active_connections.items()):
@@ -93,7 +93,7 @@ class WebSocketManager:
         if client_id not in self.active_connections:
             return
 
-        message_with_timestamp = {**message, "timestamp": datetime.utcnow().isoformat()}
+        message_with_timestamp = {**message, "timestamp": datetime.now(timezone.utc).isoformat()}
 
         websocket = self.active_connections[client_id]["websocket"]
         try:
@@ -128,7 +128,7 @@ class WebSocketManager:
                     "confidence": 0.8 + (i * 0.1),
                     "z_score": 1.5 + (i * 0.3),
                     "strategy_signal": f"signal_{i}",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
                 opportunities.append(opp)
 
@@ -238,7 +238,7 @@ async def websocket_endpoint(websocket: WebSocket):
     """Main WebSocket endpoint."""
     # Extract client ID from query parameters or headers
     client_id = websocket.query_params.get(
-        "client_id", f"client_{datetime.utcnow().timestamp()}"
+        "client_id", f"client_{datetime.now(timezone.utc).timestamp()}"
     )
 
     await ws_manager.connect(websocket, client_id)

@@ -38,20 +38,33 @@ class KellyCriterion(PositionSizingStrategy):
     ) -> int:
         confidence = opportunity.get('confidence', 0.5)
         profit_percent = opportunity.get('profit_percent', 0)
-        win_rate = confidence
-        win_prob = win_rate
-        loss_prob = 1 - win_prob
 
-        if win_prob == 0 or loss_prob == 0:
-            return self.config.min_bet
+        completed_trades = portfolio_stats.get('completed_trades', 0)
+        win_rate_pct = portfolio_stats.get('win_rate', 0)
+        avg_win = portfolio_stats.get('avg_win', 0)
+        avg_loss = portfolio_stats.get('avg_loss', 0)
 
-        avg_win = profit_percent / 100
-        avg_loss = 0.01
+        if completed_trades >= 20 and win_rate_pct > 0 and avg_win > 0 and avg_loss != 0:
+            # Use actual portfolio history for Kelly
+            p = win_rate_pct / 100
+            q = 1 - p
+            b = avg_win / abs(avg_loss)
+            kelly_fraction = (p * b - q) / b
+        else:
+            # Fall back to confidence-based calculation
+            win_prob = confidence
+            loss_prob = 1 - win_prob
 
-        if avg_win <= 0:
-            return self.config.min_bet
+            if win_prob == 0 or loss_prob == 0:
+                return self.config.min_bet
 
-        kelly_fraction = (win_prob * avg_win - loss_prob * avg_loss) / avg_win
+            avg_win_rate = profit_percent / 100
+            avg_loss_rate = 0.01
+
+            if avg_win_rate <= 0:
+                return self.config.min_bet
+
+            kelly_fraction = (win_prob * avg_win_rate - loss_prob * avg_loss_rate) / avg_win_rate
 
         if kelly_fraction <= 0:
             return self.config.min_bet
@@ -61,9 +74,7 @@ class KellyCriterion(PositionSizingStrategy):
         max_position = portfolio_stats.get('cash_balance', 10000) * self.config.max_position_percent
         position_size = int(kelly_fraction * max_position / 100)
 
-        position_size = max(self.config.min_bet, min(position_size, self.config.max_bet))
-
-        return position_size
+        return max(self.config.min_bet, min(position_size, self.config.max_bet))
 
 
 @dataclass

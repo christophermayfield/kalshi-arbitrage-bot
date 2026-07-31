@@ -5,7 +5,7 @@ Advanced Risk Metrics - VaR, CVaR, and stress testing.
 import numpy as np
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import deque
 
 from src.utils.logging_utils import get_logger
@@ -46,7 +46,7 @@ class RiskAnalyzer:
         self, value: float, timestamp: Optional[datetime] = None
     ) -> None:
         """Add a portfolio value observation."""
-        self._portfolio_values.append((timestamp or datetime.utcnow(), value))
+        self._portfolio_values.append((timestamp or datetime.now(timezone.utc), value))
 
     def add_trade_pnl(self, pnl: int) -> None:
         """Add a trade P&L observation (in cents)."""
@@ -313,7 +313,7 @@ class RiskAnalyzer:
     def get_risk_report(self) -> Dict[str, Any]:
         """Get comprehensive risk report."""
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metrics": {
                 "var_95": self.calculate_var(0.95),
                 "var_99": self.calculate_var(0.99),

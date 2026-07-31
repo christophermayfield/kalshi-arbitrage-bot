@@ -19,7 +19,7 @@ def test_imports():
         from src.execution.trading import TradingExecutor
         from src.core.arbitrage import ArbitrageDetector
         from src.core.portfolio import PortfolioManager
-        from src.clients.kalexi_client import KalshiClient
+        from src.clients.kalshi_client import KalshiClient
         from src.main import ArbitrageBot
 
         print("✅ All core imports successful")
@@ -53,14 +53,18 @@ def test_trading_executor_atomic_execution():
         executor = TradingExecutor(mock_client, paper_mode=True)
 
         # Create test opportunity
+        from src.core.arbitrage import ArbitrageType
+
         opportunity = ArbitrageOpportunity(
             id="test_opp",
+            type=ArbitrageType.CROSS_MARKET,
+            market_id_1="market_1",
             buy_market_id="market_1",
             sell_market_id="market_2",
             buy_price=100,
             sell_price=101,
             quantity=100,
-            net_profit_cents=100,
+            profit_cents=100,
         )
 
         print("  Testing atomic execution logic...")
@@ -145,23 +149,28 @@ def test_risk_management():
     try:
         from src.core.portfolio import PortfolioManager
 
-        portfolio = PortfolioManager(max_daily_loss=1000, max_position_contracts=100)
+        portfolio = PortfolioManager(
+            max_daily_loss=500, max_position_contracts=100, initial_balance=10000
+        )
 
         # Test risk limits
         initial_balance = portfolio.get_balance()
 
         # Test position limit
-        can_open = portfolio.can_open_position(50)
+        can_open, reason = portfolio.can_open_position(50)
         if can_open:
             print("  ✅ Position limit enforcement working")
         else:
-            print("  ❌ Position limit not enforced")
+            print(f"  ❌ Position limit not enforced: {reason}")
             return False
 
-        # Test daily loss limit
-        # Simulate losses
-        for i in range(5):
-            portfolio.add_daily_loss(100)  # $1 loss each
+        # Test daily loss limit - set threshold low to trigger quickly
+        portfolio.circuit_breaker_threshold = 3  # Trigger after 3 losses
+        portfolio.max_daily_loss = 200  # $2 max loss
+
+        # Simulate losses to trigger circuit breaker
+        for i in range(3):
+            portfolio.add_daily_loss(100)  # $1 loss each, total $3 > $2 max
 
         can_trade = portfolio.check_daily_loss_limit()
         if not can_trade:

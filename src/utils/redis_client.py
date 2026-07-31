@@ -2,7 +2,7 @@ import asyncio
 import json
 import pickle
 from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 import redis.asyncio as redis
 
@@ -225,11 +225,11 @@ class RedisClient:
     async def record_trade(self, trade_data: Dict[str, Any]) -> int:
         trade_id = await self.increment_counter("trade_id")
         trade_data["id"] = trade_id
-        trade_data["timestamp"] = datetime.utcnow().isoformat()
+        trade_data["timestamp"] = datetime.now(timezone.utc).isoformat()
         await self.set_json(f"trade:{trade_id}", trade_data, 86400 * 7)
         await self.zadd(
             "trades_by_time",
-            datetime.utcnow().timestamp(),
+            datetime.now(timezone.utc).timestamp(),
             str(trade_id)
         )
         return trade_id
@@ -238,7 +238,7 @@ class RedisClient:
         trade_ids = await self.zrangebyscore(
             "trades_by_time",
             0,
-            datetime.utcnow().timestamp()
+            datetime.now(timezone.utc).timestamp()
         )
         trades = []
         for tid in trade_ids[-limit:]:

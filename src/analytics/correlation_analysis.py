@@ -5,7 +5,7 @@ Correlation Analysis - Real-time correlation matrix between markets.
 import numpy as np
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from src.utils.logging_utils import get_logger
@@ -40,7 +40,7 @@ class CorrelationAnalyzer:
     ) -> None:
         """Add a price observation."""
         self._price_history[market_id].append(price)
-        self._timestamps[market_id].append(timestamp or datetime.utcnow())
+        self._timestamps[market_id].append(timestamp or datetime.now(timezone.utc))
 
         if len(self._price_history[market_id]) > self.lookback_period:
             self._price_history[market_id] = self._price_history[market_id][
@@ -133,7 +133,7 @@ class CorrelationAnalyzer:
                     correlation=correlation,
                     hedge_ratio=hedge_ratio,
                     spread_std=spread_std,
-                    last_updated=datetime.utcnow(),
+                    last_updated=datetime.now(timezone.utc),
                 )
 
                 self._correlations[m1][m2] = pair

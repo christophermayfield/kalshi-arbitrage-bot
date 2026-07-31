@@ -7,7 +7,7 @@ Provides real-time dashboard data and performance tracking.
 
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 from src.core.limited_risk_manager import LimitedRiskManager
@@ -63,7 +63,7 @@ class LimitedRiskMetrics:
         )
 
         record = TradeRecord(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             market_id=market_id,
             contracts=contracts,
             entry_price_cents=entry_price_cents,
@@ -146,7 +146,7 @@ class LimitedRiskMetrics:
 
     def get_performance_report(self, days: int = 7) -> Dict[str, Any]:
         """Get performance report for the last N days."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         recent_trades = [t for t in self.trade_history if t.timestamp >= cutoff]
 
         if not recent_trades:

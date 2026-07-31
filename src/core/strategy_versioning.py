@@ -1,7 +1,7 @@
 """Strategy versioning and rollback system for arbitrage bot."""
 
 from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, asdict
 from enum import Enum
 import json
@@ -163,7 +163,7 @@ class StrategyVersionManager:
                 strategy_name=strategy_name,
                 version_type=version_type,
                 status=VersionStatus.DRAFT,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 created_by=created_by,
                 description=description,
                 config=config,

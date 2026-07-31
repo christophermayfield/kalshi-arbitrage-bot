@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta
+import os
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, Session, declarative_base
-from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
+from sqlalchemy import JSON
 import enum
 import pandas as pd
 
@@ -180,7 +181,7 @@ class PortfolioSnapshot(Base):
     open_positions = Column(Integer, default=0)
     daily_pnl = Column(Integer, default=0)
     total_pnl = Column(Integer, default=0)
-    metrics = Column(SQLiteJSON, nullable=True)
+    metrics = Column(JSON, nullable=True)
 
 
 class BotConfig(Base):
@@ -212,7 +213,7 @@ class MarketDataSnapshot(Base):
     total_volume = Column(Integer, default=0)
     liquidity_score = Column(Float, nullable=True)
 
-    orderbook_data = Column(SQLiteJSON, nullable=True)
+    orderbook_data = Column(JSON, nullable=True)
 
     __table_args__ = (Index("idx_market_data_market_time", "market_id", "timestamp"),)
 
@@ -230,7 +231,9 @@ class PriceHistory(Base):
 
 
 class Database:
-    def __init__(self, database_url: str = "sqlite:///data/arbitrage.db"):
+    def __init__(self, database_url: str = None):
+        if database_url is None:
+            database_url = os.environ.get("DATABASE_URL", "sqlite:///data/arbitrage.db")
         self.database_url = database_url
         self._engine = None
         self._session_factory = None
@@ -444,7 +447,7 @@ class Database:
     async def cleanup_old_data(self, days: int = 30) -> int:
         session = self.get_session()
         try:
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             from sqlalchemy import delete
 
             result = session.execute(

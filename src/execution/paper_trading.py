@@ -6,7 +6,7 @@ import asyncio
 import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from src.core.orderbook import OrderBook, OrderBookLevel, OrderSide
@@ -87,11 +87,11 @@ class PaperTradingSimulator:
 
     def _generate_order_id(self) -> str:
         self._order_counter += 1
-        return f"paper_{self._order_counter}_{int(datetime.utcnow().timestamp())}"
+        return f"paper_{self._order_counter}_{int(datetime.now(timezone.utc).timestamp())}"
 
     def _generate_trade_id(self) -> str:
         self._trade_counter += 1
-        return f"trade_{self._trade_counter}_{int(datetime.utcnow().timestamp())}"
+        return f"trade_{self._trade_counter}_{int(datetime.now(timezone.utc).timestamp())}"
 
     def update_orderbook(self, market_id: str, orderbook: OrderBook) -> None:
         """Update the simulated orderbook for a market."""
@@ -208,7 +208,7 @@ class PaperTradingSimulator:
         order.status = "filled"
         order.filled_quantity = order.quantity
         order.fill_price = fill_price
-        order.filled_at = datetime.utcnow()
+        order.filled_at = datetime.now(timezone.utc)
 
         # Deduct balance for buys, add for sells
         if order.side == "buy":
@@ -224,7 +224,7 @@ class PaperTradingSimulator:
             side=order.side,
             price=fill_price,
             quantity=order.quantity,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
         self.trades.append(trade)
 

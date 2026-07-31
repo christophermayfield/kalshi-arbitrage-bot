@@ -5,7 +5,7 @@ Anomaly Detection - Detect anomalous trading behavior and performance.
 import numpy as np
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import deque
 
 from src.utils.logging_utils import get_logger
@@ -46,7 +46,7 @@ class AnomalyDetector:
             self._metric_history[metric_name] = deque(maxlen=self.lookback_period)
 
         self._metric_history[metric_name].append(
-            {"value": value, "timestamp": timestamp or datetime.utcnow()}
+            {"value": value, "timestamp": timestamp or datetime.now(timezone.utc)}
         )
 
     def detect_z_score_anomaly(
@@ -83,7 +83,7 @@ class AnomalyDetector:
                     mean - self.z_threshold * std,
                     mean + self.z_threshold * std,
                 ),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
 
         return None
@@ -124,7 +124,7 @@ class AnomalyDetector:
                     ma - self.z_threshold * std,
                     ma + self.z_threshold * std,
                 ),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
 
         return None
@@ -159,7 +159,7 @@ class AnomalyDetector:
                 metric_name=metric_name,
                 value=value,
                 expected_range=(prev_value * 0.5, prev_value * 1.5),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
 
         return None
@@ -186,7 +186,7 @@ class AnomalyDetector:
             metric_name=metric_name,
             value=value,
             expected_range=(min_threshold, max_threshold),
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
 
     def check_all_anomalies(self, metrics: Dict[str, float]) -> List[Anomaly]:
@@ -212,7 +212,7 @@ class AnomalyDetector:
         self, hours: int = 24, severity: Optional[str] = None
     ) -> List[Anomaly]:
         """Get recent anomalies."""
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         anomalies = [a for a in self._anomalies if a.timestamp >= cutoff]
 
@@ -257,7 +257,7 @@ class AnomalyDetector:
     def clear_anomalies(self, before: Optional[datetime] = None) -> int:
         """Clear old anomalies."""
         if before is None:
-            before = datetime.utcnow() - timedelta(days=7)
+            before = datetime.now(timezone.utc) - timedelta(days=7)
 
         initial_count = len(self._anomalies)
         self._anomalies = [a for a in self._anomalies if a.timestamp >= before]

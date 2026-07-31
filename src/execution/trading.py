@@ -3,7 +3,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.clients.kalshi_client import KalshiClient
 from src.core.orderbook import OrderSide
@@ -35,7 +35,7 @@ class TradeResult:
     filled_price: int = 0
     total_cost: int = 0
     error_message: Optional[str] = None
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @dataclass
@@ -45,7 +45,6 @@ class ExecutionPlan:
     buy_filled: bool = False
     sell_filled: bool = False
     emergency_cancelled: bool = False
-    sell_filled: bool = False
     quantity: int = 0
     expected_profit: int = 0
 
