@@ -248,16 +248,23 @@ class ProductionArbitrageBot:
         logger.info("Initializing connections...")
 
         try:
-            # Initialize database
-            self.db = Database(self.config)
-            await self.db.connect()
-            logger.info("✓ Database connected")
+            # Initialize database (synchronous, no async connect needed)
+            db_path = self.config.get("database.path", "data/arbitrage.db")
+            db_url = f"sqlite:///{db_path}"
+            self.db = Database(db_url)
+            self.db.create_engine()
+            self.db.create_tables()
+            logger.info("✓ Database initialized")
 
             # Get initial balance
-            portfolio = await self.retry_policy.execute(self.client.get_portfolio)
-            balance_cents = portfolio.get("balance_cents", 1000000)
-            self.risk_manager.update_equity(balance_cents)
-            logger.info(f"✓ Current balance: ${balance_cents / 100:.2f}")
+            try:
+                balance_data = await self.retry_policy.execute(self.client.get_balance)
+                balance_cents = int(balance_data.get("balance_cents", 1000000))
+                self.risk_manager.update_equity(balance_cents)
+                logger.info(f"✓ Current balance: ${balance_cents / 100:.2f}")
+            except Exception as e:
+                logger.warning(f"Could not fetch initial balance: {e}, using default")
+                self.risk_manager.update_equity(1000000)
 
             # Initialize WebSocket (optional)
             if self.config.get("websocket.enabled", True):
@@ -311,9 +318,8 @@ class ProductionArbitrageBot:
         finally:
             self.running = False
             # Close connections
-            if self.db:
-                await self.db.close()
-            self.db_pool.close()
+            if hasattr(self, 'db_pool'):
+                self.db_pool.close()
 
     async def _scan_loop(self):
         """Main scanning loop with circuit breaker protection."""
